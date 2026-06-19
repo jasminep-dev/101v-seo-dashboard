@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>101VOICE — Weekly SEO Movement</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  /* ---- tokens ---- */
+  :root{
+    --ink:#14233B;          /* navy text */
+    --ink-soft:#4A5A70;
+    --line:#E3E7ED;
+    --panel:#FFFFFF;
+    --app:#EEF1F5;          /* cool workspace */
+    --navy:#10243F;         /* header ground */
+    --orange:#F2641A;       /* 101VOICE accent — used with restraint */
+    --up:#1F9D6B;
+    --down:#D7443E;
+    --amber:#C8821B;
+    --chip:#F4F6F9;
+    --radius:10px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--app);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:14px;line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.disp{font-family:"Montserrat",sans-serif;}
+  .num{font-variant-numeric:tabular-nums;}
+  a{color:var(--orange);text-decoration:none}
+  a:hover{text-decoration:underline}
+  :focus-visible{outline:2px solid var(--orange);outline-offset:2px;border-radius:4px}
+
+  /* ---- header ---- */
+  header.top{
+    background:var(--navy);color:#fff;padding:18px 26px;
+    display:flex;flex-wrap:wrap;gap:16px 28px;align-items:baseline;justify-content:space-between;
+  }
+  .top .eyebrow{font-family:"Montserrat";font-weight:700;letter-spacing:.14em;text-transform:uppercase;font-size:11px;color:var(--orange)}
+  .top h1{font-size:21px;font-weight:800;margin:3px 0 0;letter-spacing:-.01em}
+  .top .period{font-size:12.5px;color:#AEBDD2;text-align:right;line-height:1.6}
+  .top .period b{color:#fff;font-weight:600}
+  .srcflag{display:inline-block;font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;margin-top:6px}
+  .srcflag.sample{background:#3A2A12;color:#F2B468;border:1px solid #6a4a1d}
+  .srcflag.live{background:#10341f;color:#5FD39A;border:1px solid #1f6a40}
+
+  main{max-width:1120px;margin:0 auto;padding:22px 20px 60px}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;margin-bottom:18px}
+  .sec-eyebrow{font-family:"Montserrat";font-weight:700;font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--orange);margin:0 0 2px}
+  .sec-title{font-size:16px;font-weight:700;margin:0 0 14px}
+  .sec-note{font-size:12px;color:var(--ink-soft);margin:-8px 0 14px}
+
+  /* ---- trajectory banner ---- */
+  .traj{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .traj .badge{font-family:"Montserrat";font-weight:800;font-size:15px;padding:8px 16px;border-radius:8px;letter-spacing:.01em}
+  .traj .badge.improving{background:#E7F5EE;color:var(--up)}
+  .traj .badge.declining{background:#FBE9E7;color:var(--down)}
+  .traj .badge.stable{background:#FBF1DF;color:var(--amber)}
+  .traj .summary{font-size:13px;color:var(--ink-soft);max-width:640px}
+
+  /* ---- headline cards ---- */
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:16px}
+  .card{border:1px solid var(--line);border-radius:8px;padding:13px 14px;background:#fff}
+  .card .lab{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-soft)}
+  .card .val{font-family:"Montserrat";font-weight:800;font-size:25px;margin-top:4px;letter-spacing:-.02em}
+  .card .delta{font-size:12.5px;font-weight:600;margin-top:2px}
+  .delta.up{color:var(--up)} .delta.down{color:var(--down)} .delta.flat{color:var(--ink-soft)}
+
+  /* ---- queue ---- */
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-soft);cursor:default}
+  th.sortable{cursor:pointer;user-select:none}
+  th.sortable:hover{color:var(--ink)}
+  td{font-size:13px}
+  tbody tr:last-child td{border-bottom:none}
+  td.url{max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink-soft)}
+  .pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;white-space:nowrap}
+  .pill.urgent{background:#FBE9E7;color:var(--down)}
+  .pill.quick{background:#E7F5EE;color:var(--up)}
+  .pill.strategic{background:#E9F0FB;color:#2C5B9E}
+  .pill.done{background:#EAEFF4;color:#5A6B82}
+  .pill.progress{background:#FBF1DF;color:var(--amber)}
+  .pill.notstarted{background:#F4F6F9;color:#6B7A8E}
+
+  /* movement pills */
+  .mv{display:inline-block;font-weight:700;font-size:12.5px;padding:1px 7px;border-radius:6px;white-space:nowrap}
+  .mv.up{background:#E7F5EE;color:var(--up)}
+  .mv.down{background:#FBE9E7;color:var(--down)}
+  .mv.flat{background:#F1F3F6;color:#6B7A8E}
+  .mv.new{background:#FCEFE4;color:var(--orange)}
+  .mv.lost{background:#EFE9F4;color:#7A52A3}
+  .mv.wait{background:#EAEFF4;color:#5A6B82}
+  .small{font-size:11.5px;color:var(--ink-soft)}
+  .arrow{color:var(--ink-soft);padding:0 3px}
+
+  /* filter chips */
+  .chips{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 12px}
+  .chip{font-size:12px;font-weight:600;padding:5px 12px;border-radius:999px;background:var(--chip);border:1px solid var(--line);color:var(--ink-soft);cursor:pointer}
+  .chip[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+  .twocol{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:760px){.twocol{grid-template-columns:1fr}}
+
+  .opp{padding:11px 0;border-bottom:1px solid var(--line)}
+  .opp:last-child{border-bottom:none}
+  .opp .q{font-weight:700}
+  .opp .why{font-size:12.5px;color:var(--ink-soft);margin-top:2px}
+
+  .flag{background:#FBF1DF;border:1px solid #ECD9B0;border-radius:8px;padding:10px 13px;font-size:12.5px;color:#7A5C1B;margin-bottom:14px}
+  .footer-note{font-size:12.5px;color:var(--ink-soft);line-height:1.6}
+  .footer-note b{color:var(--ink)}
+  code{background:#F1F3F6;padding:1px 5px;border-radius:4px;font-size:12px}
+  @media (prefers-reduced-motion:no-preference){
+    .panel{animation:rise .4s ease both}
+    @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <div>
+    <div class="eyebrow">101VOICE · Search performance</div>
+    <h1>Weekly SEO Movement</h1>
+    <span id="srcFlag" class="srcflag sample">Sample data</span>
+  </div>
+  <div class="period" id="periodBox">Loading…</div>
+</header>
+
+<main>
+  <!-- trajectory + headline -->
+  <section class="panel">
+    <div class="traj">
+      <span id="trajBadge" class="badge stable">—</span>
+      <span class="summary" id="trajSummary"></span>
+    </div>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <!-- action queue -->
+  <section class="panel">
+    <p class="sec-eyebrow">In queue</p>
+    <h2 class="sec-title">Optimization queue &amp; status</h2>
+    <p class="sec-note" id="queueNote">Loading queue…</p>
+    <table id="queueTable">
+      <thead><tr>
+        <th>Action</th><th>Target</th><th>Priority</th><th>Status</th><th>Flagged</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- what our updates are doing -->
+  <section class="panel">
+    <p class="sec-eyebrow">Impact · published changes</p>
+    <h2 class="sec-title">What our updates are doing</h2>
+    <p class="sec-note" id="mvNote">Loading change results…</p>
+    <div class="cards" id="mvCards"></div>
+    <table id="mvTable" style="margin-top:14px">
+      <thead><tr>
+        <th>Page</th><th>Changed to</th><th class="num">At push</th><th class="num">Age</th><th>30-day</th><th>60-day</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- keyword movement -->
+  <section class="panel">
+    <p class="sec-eyebrow">Week over week</p>
+    <h2 class="sec-title">Keyword movement</h2>
+    <div class="chips" id="chips">
+      <span class="chip" data-f="all" aria-pressed="true">All</span>
+      <span class="chip" data-f="up" aria-pressed="false">Winners</span>
+      <span class="chip" data-f="down" aria-pressed="false">Losers</span>
+      <span class="chip" data-f="new" aria-pressed="false">New</span>
+      <span class="chip" data-f="lost" aria-pressed="false">Lost</span>
+      <span class="chip" data-f="striking" aria-pressed="false">Striking distance</span>
+    </div>
+    <table id="kwTable">
+      <thead><tr>
+        <th>Query</th>
+        <th>Page</th>
+        <th class="sortable num" data-sort="clicks">Clicks</th>
+        <th class="sortable num" data-sort="pos">Position</th>
+        <th class="num">Impr.</th>
+        <th>Move</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <div class="twocol">
+    <!-- opportunities -->
+    <section class="panel">
+      <p class="sec-eyebrow">Worth a look</p>
+      <h2 class="sec-title">Opportunities</h2>
+      <div id="oppList"></div>
+    </section>
+
+    <!-- content (GA4) -->
+    <section class="panel">
+      <p class="sec-eyebrow">Engagement · GA4</p>
+      <h2 class="sec-title">Top engaged pages</h2>
+      <table id="ga4Table">
+        <thead><tr><th>Page</th><th class="num">Engaged</th><th class="num">Eng. rate</th><th class="num">Avg time</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </div>
+
+  <!-- how it updates -->
+  <section class="panel">
+    <p class="sec-eyebrow">Staying current</p>
+    <h2 class="sec-title">How this refreshes</h2>
+    <p class="footer-note">
+      This dashboard reflects a fresh search performance snapshot pulled every <b>Monday morning</b>, comparing the current week against the prior week.
+    </p>
+  </section>
+</main>
+
+<script>
+/* =========================================================================
+   CONFIG — reads the live Sheet via Google's gviz endpoint, loaded as a
+   <script> (which avoids the cross-origin block that stops a plain CSV fetch,
+   and works even when this file is opened locally). SHEET_ID is the
+   spreadsheet's real ID; the gids are the GSC and GA4 tabs. Falls back to the
+   embedded June 2 / June 8 sample if the Sheet can't be read. Expected columns:
+   GSC tab : Date, Page, Query, Clicks, Impressions, CTR, Position
+   GA4 tab : Date, Page Path, Sessions, Engaged Sessions, Engagement Rate, Bounce Rate, Avg Session Duration
+   ========================================================================= */
+const SHEET_ID = "1L9AedwqgpjM04_JDiA2B7yAKeBubAks2uwZZ-CsBeYU";
+const GSC_GID  = "0";
+const GA4_GID  = "1309186079";
+
+/* ---- embedded real sample (101voice.com, GSC top rows, 2026-06-02 vs 06-08) ---- */
+const GSC_SAMPLE = [
+  ["2026-06-02","https://101voice.com/glossary/933-emergency-address-verification/","933",18,6748,0.00267,7.5575],
+  ["2026-06-02","https://101voice.com/glossary/933-emergency-address-verification/","933 phone number",15,218,0.0688,2.6009],
+  ["2026-06-02","https://101voice.com/glossary/933-emergency-address-verification/","933 number",4,184,0.0217,4.3913],
+  ["2026-06-02","https://101voice.com/glossary/933-emergency-address-verification/","what is 933 phone number",4,66,0.0606,1.5758],
+  ["2026-06-02","https://101voice.com/arvos/","arvos",2,215,0.0093,3.9209],
+  ["2026-06-02","https://101voice.com/pots-over-lte/","pots over lte",2,59,0.0339,2.9661],
+  ["2026-06-02","https://101voice.com/glossary/933-emergency-address-verification/","what is 933",2,77,0.0260,3.7273],
+  ["2026-06-02","https://101voice.com/champie-ai/","champie",1,443,0.00226,4.2664],
+  ["2026-06-02","https://101voice.com/elastic-sip-trunk/","elastic sip trunking",1,336,0.00298,8.4851],
+  ["2026-06-02","https://101voice.com/private-label-ucaas/","white label ucaas",1,167,0.00599,10.6467],
+  ["2026-06-02","https://101voice.com/california-schools-alyssas-law-compliance-guide/","alyssa's law california",1,29,0.0345,1.3448],
+
+  ["2026-06-08","https://101voice.com/glossary/933-emergency-address-verification/","933",19,6418,0.00296,7.5304],
+  ["2026-06-08","https://101voice.com/glossary/933-emergency-address-verification/","933 phone number",15,223,0.0673,2.5471],
+  ["2026-06-08","https://101voice.com/glossary/933-emergency-address-verification/","what is 933 phone number",4,66,0.0606,1.6818],
+  ["2026-06-08","https://101voice.com/glossary/933-emergency-address-verification/","933 number",3,184,0.0163,4.3261],
+  ["2026-06-08","https://101voice.com/glossary/933-emergency-address-verification/","what is 933",3,91,0.0330,3.6264],
+  ["2026-06-08","https://101voice.com/arvos/","arvos",2,195,0.0103,3.6718],
+  ["2026-06-08","https://101voice.com/champie-ai/","champie",1,449,0.00223,4.1982],
+  ["2026-06-08","https://101voice.com/pots-over-lte/","pots over lte",1,53,0.0189,1.7358],
+  ["2026-06-08","https://101voice.com/cash-conference-2026/","cash conference 2026",1,123,0.00813,5.4878],
+  ["2026-06-08","https://101voice.com/cash-conference-2026/","cash annual conference 2026",1,6,0.1667,5.6667],
+  ["2026-06-08","https://101voice.com/elastic-sip-trunk/","wholesale sip trunks",1,62,0.0161,18.2581],
+  ["2026-06-08","https://101voice.com/california-schools-alyssas-law-compliance-guide/","alyssa's law california",1,25,0.04,1.28],
+];
+
+/* GA4 sample — Sessions column arrives blank from the current pull; Engaged Sessions used as the volume proxy. */
+const GA4_SAMPLE = [
+  ["2026-06-02","/", "", 1366,0.6991,0.3009,66.54],
+  ["2026-06-02","/our-products/","",109,0.7615,0.2385,205.23],
+  ["2026-06-02","/glossary/933-emergency-address-verification/","",88,0.5227,0.4773,100.96],
+  ["2026-06-02","/arvos/","",84,0.4405,0.5595,82.86],
+  ["2026-06-02","/awards-recognition/","",53,0.4340,0.5660,5.40],
+  ["2026-06-02","/contact-us/","",49,0.7347,0.2653,68.57],
+  ["2026-06-02","/1number-io/","",48,0.4583,0.5417,43.81],
+  ["2026-06-02","/products/101voice-ip1040w/","",39,0.8205,0.1795,122.21],
+  ["2026-06-02","/download-applications/","",33,0.7879,0.2121,118.99],
+  ["2026-06-02","/support/","",27,0.6296,0.3704,179.67],
+
+  ["2026-06-08","/our-products/","",103,0.7767,0.2233,165.58],
+  ["2026-06-08","/glossary/933-emergency-address-verification/","",86,0.4884,0.5116,118.30],
+  ["2026-06-08","/products/101voice-ip1040w/","",37,0.8108,0.1892,152.71],
+  ["2026-06-08","/about-us/","",31,0.8387,0.1613,103.28],
+  ["2026-06-08","/support/","",30,0.6,0.4,159.00],
+  ["2026-06-08","/industries/education/","",18,0.9444,0.0556,136.92],
+  ["2026-06-08","/public-announcement-integration/","",17,0.7059,0.2941,117.56],
+  ["2026-06-08","/coverage/","",16,0.8125,0.1875,120.61],
+  ["2026-06-08","/navigating-the-future-of-mitel-solutions/","",16,0.8125,0.1875,114.74],
+  ["2026-06-08","/mitel-end-of-life-support-2026/","",15,0.8,0.2,220.25],
+];
+
+/* queue is manual until the optimizer/executer loop exists.
+   Key (col F) format from queue-generator.gs: Query + "|" + Page */
+const QUEUE_SAMPLE = [
+  ["Add FAQ + tighten title for \u201Cchampie\u201D","/champie-ai/","quick","notstarted","2026-06-08","champie|https://101voice.com/champie-ai/"],
+  ["Improve CTR on \u201C933\u201D (6.4k impr, ~0.3% CTR)","/glossary/933-emergency-address-verification/","strategic","notstarted","2026-06-08","933|https://101voice.com/glossary/933-emergency-address-verification/"],
+  ["Build out elastic SIP trunk content depth","/elastic-sip-trunk/","strategic","notstarted","2026-06-08","elastic sip trunking|https://101voice.com/elastic-sip-trunk/"],
+];
+
+/* Changes ledger sample — empty until the executer has logged a run.
+   Columns: ChangeId, Timestamp, PostId, Url, ChangeType, Outcome, Blocks, FieldsChanged,
+   BeforeTitle, BeforeDescription, BeforeMetaJson, BackupRef, AfterHash, VerifyAtPush,
+   QueueKey (index 14), ... */
+/* Changes ledger sample — used only if the live Changes tab can't be read.
+   Real published rows from the executer, shown in their true current state
+   (measuring: 30/60-day verdicts are not due until mid-July). No invented
+   verdicts. Built by index so the array lines up with the live gviz columns:
+   0 ChangeId,1 Timestamp,3 Url,4 ChangeType,5 Outcome,14 QueueKey,
+   15 Measure30Due,16 Measure60Due,18 Measure30Result,19 Measure60Result,
+   22 Notes,23 BaselineJson,24 AfterTitle,25 AfterDescription */
+function _chg(o){
+  const r = new Array(26).fill("");
+  r[1]=o.ts; r[3]=o.url; r[4]=o.type||"meta"; r[5]="published";
+  r[15]=o.due30||""; r[16]=o.due60||""; r[18]=o.m30||""; r[19]=o.m60||"";
+  r[22]=o.notes||""; r[23]=o.base||""; r[24]=o.after||"";
+  return r;
+}
+const CHANGES_SAMPLE = [
+  _chg({ts:"2026-06-19T08:44:50Z", url:"https://101voice.com/arvos/", due30:"2026-07-19", due60:"2026-08-18",
+    base:'{"clicks":9,"impressions":394,"ctr":0.02284,"position":5.80}',
+    after:"ARVOS Push-to-Talk Over Cellular | LTE PTT Devices"}),
+  _chg({ts:"2026-06-19T08:45:15Z", url:"https://101voice.com/champie-ai/", due30:"2026-07-19", due60:"2026-08-18",
+    base:'{"clicks":9,"impressions":882,"ctr":0.01020,"position":6.43}',
+    after:"Champie AI: Call Transcription in 99+ Languages | 101VOICE"}),
+  _chg({ts:"2026-06-15T12:50:04Z", url:"https://101voice.com/glossary/933-emergency-address-verification/", due30:"2026-07-15", due60:"2026-08-14",
+    base:'{"clicks":61,"impressions":10404,"ctr":0.00586,"position":6.72}',
+    after:""}),
+];
+
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const num = n => (Math.round(n*100)/100);
+const fmt = n => n.toLocaleString("en-US");
+const dur = s => { const m=Math.floor(s/60), r=Math.round(s%60); return m?`${m}m ${r}s`:`${r}s`; };
+const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function parseCSV(text){
+  const rows=[]; let row=[],cur="",q=false;
+  for(let i=0;i<text.length;i++){const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=c; }
+    else { if(c==='"')q=true; else if(c===','){row.push(cur);cur="";}
+      else if(c==='\n'){row.push(cur);rows.push(row);row=[];cur="";}
+      else if(c==='\r'){} else cur+=c; } }
+  if(cur!==""||row.length){row.push(cur);rows.push(row);}
+  return rows;
+}
+function gvizLoad(q, sample, opts){
+  opts=opts||{};
+  return new Promise(resolve=>{
+    const cb="gviz_"+Math.floor(Math.random()*1e9);
+    let s, done=false;
+    const finish=res=>{ if(done)return; done=true; clearTimeout(timer);
+      try{delete window[cb];}catch(e){window[cb]=undefined;}
+      if(s&&s.parentNode)s.parentNode.removeChild(s); resolve(res); };
+    const timer=setTimeout(()=>finish({rows:sample,live:false}),9000);
+    window[cb]=resp=>{
+      try{
+        if(!resp||!resp.table||resp.status==="error") return finish({rows:sample,live:false});
+        const t=resp.table;
+        let rows=t.rows.map(r=> t.cols.map((c,i)=>{
+          let v=(r.c&&r.c[i])?r.c[i].v:null;
+          if(typeof v==="string"){ const m=v.match(/^Date\((\d+),(\d+),(\d+)/);
+            if(m) v=m[1]+"-"+String(+m[2]+1).padStart(2,"0")+"-"+String(+m[3]).padStart(2,"0"); }
+          return (v===null||v===undefined)?"":v;
+        }));
+        if(opts.dated===false) // queue/changes tabs: keep non-empty rows, drop a stray header row
+          rows=rows.filter(r=>{ const v=String(r[0]).trim().toLowerCase(); return v!=="" && v!=="action" && v!=="changeid"; });
+        else                   // GSC/GA4: keep dated rows only
+          rows=rows.filter(r=>/^\d{4}-\d{2}-\d{2}/.test(String(r[0])));
+        finish({rows: rows.length?rows:sample, live: rows.length>0});
+      }catch(e){ finish({rows:sample,live:false}); }
+    };
+    const sel = q.gid!=null ? ("gid="+encodeURIComponent(q.gid)) : ("sheet="+encodeURIComponent(q.sheet));
+    s=document.createElement("script");
+    s.src="https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/gviz/tq?"+sel+"&tqx=responseHandler:"+cb;
+    s.onerror=()=>finish({rows:sample,live:false});
+    document.head.appendChild(s);
+  });
+}
+
+/* ---- brand keyword exclusion list ---- */
+/* Matching strategy: normalize (lowercase, strip spaces) then substring-match.
+   This catches spacing/pluralization variants (e.g. "101 voices", "101-voice",
+   "101voice reviews") that exact/boundary matching on raw text would miss. */
+const BRAND_TERMS = [
+  "101voice","101voices","voice101","101voicephones",
+  "101voicelogin","101voicecom","www101voice"
+];
+function normKW(s){
+  return String(s||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+}
+function isBrand(query){
+  const q = normKW(query);
+  return BRAND_TERMS.some(t => q.includes(t));
+}
+
+let KW=[], state={filter:"all",sort:"clicks"};
+
+function init(gsc,ga4,queue,changes){
+  const liveFlag = gsc.live || ga4.live;
+  const sf=$("#srcFlag");
+  if(liveFlag){ sf.className="srcflag live"; sf.textContent="Live — reading 101VOICE Weekly SEO Data"; }
+
+  /* ---- GSC: find latest two snapshot dates ---- */
+  const g=gsc.rows.filter(r=>!isBrand(r[2]));
+  const dates=[...new Set(g.map(r=>r[0]))].sort();
+  const cur=dates[dates.length-1], prev=dates[dates.length-2];
+  $("#periodBox").innerHTML = prev
+    ? `Current snapshot <b>${cur}</b><br>vs previous <b>${prev}</b>`
+    : `Current snapshot <b>${cur}</b><br><span style="color:#8aa">(no prior week yet — movement starts next Monday)</span>`;
+
+  const key=r=>r[2]+" @ "+r[1];
+  const mapC=new Map(), mapP=new Map();
+  g.forEach(r=>{ if(r[0]===cur)mapC.set(key(r),r); if(r[0]===prev)mapP.set(key(r),r); });
+
+  KW=[];
+  const seen=new Set();
+  mapC.forEach((r,k)=>{ seen.add(k);
+    const p=mapP.get(k);
+    KW.push(rowObj(r,p));
+  });
+  mapP.forEach((r,k)=>{ if(!seen.has(k)) KW.push(rowObj(null,r)); }); // lost
+
+  renderHeadline(prev);
+  renderQueue(queue,changes);
+  renderMovement(changes);
+  renderKW();
+  renderOpps();
+  renderGA4(ga4);
+}
+
+function rowObj(c,p){
+  // c/p = [date,page,query,clicks,impr,ctr,pos]
+  const o={ query:(c||p)[2], page:(c||p)[1] };
+  o.clicks = c?c[3]:0; o.pclicks = p?p[3]:null;
+  o.impr   = c?c[4]:(p?p[4]:0);
+  o.ctr    = c?c[5]:(p?p[5]:0);
+  o.pos    = c?c[6]:null; o.ppos = p?p[6]:null;
+  if(!p){ o.status="new"; }
+  else if(!c){ o.status="lost"; }
+  else{
+    const dp=o.ppos-o.pos; // positive = improved (lower number)
+    if(dp>=0.1) o.status="up"; else if(dp<=-0.1) o.status="down"; else o.status="flat";
+  }
+  o.striking = o.pos!==null && o.pos>=4 && o.pos<=20;
+  return o;
+}
+
+function renderHeadline(prev){
+  const cur=KW.filter(r=>r.status!=="lost");
+  const clicks=cur.reduce((a,r)=>a+r.clicks,0);
+  const pclicks=KW.reduce((a,r)=>a+(r.pclicks||0),0);
+  const impr=cur.reduce((a,r)=>a+r.impr,0);
+  const ranked=cur.filter(r=>r.pos!==null);
+  const avgPos=ranked.reduce((a,r)=>a+r.pos,0)/(ranked.length||1);
+  const prevRanked=KW.filter(r=>r.ppos!==null);
+  const pAvgPos=prevRanked.reduce((a,r)=>a+r.ppos,0)/(prevRanked.length||1);
+
+  const wins=KW.filter(r=>r.status==="up").length;
+  const loss=KW.filter(r=>r.status==="down").length;
+  const news=KW.filter(r=>r.status==="new").length;
+  const lost=KW.filter(r=>r.status==="lost").length;
+
+  const dClicks=clicks-pclicks;
+  const dPos=pAvgPos-avgPos; // positive=improved
+
+  const cardEl=$("#cards");
+  cardEl.innerHTML="";
+  cardEl.append(
+    card("Tracked clicks", fmt(clicks), prev?delta(dClicks,false):null),
+    card("Tracked impressions", fmt(impr), null),
+    card("Avg position", num(avgPos), prev?delta(dPos,false,true):null),
+    card("Winners / Losers", wins+" / "+loss, null),
+    card("New / Lost", news+" / "+lost, null)
+  );
+
+  // trajectory
+  const badge=$("#trajBadge"), sum=$("#trajSummary");
+  let cls,label;
+  if(!prev){ cls="stable"; label="Baseline"; sum.textContent="First snapshot captured. Week-over-week movement appears after the next Monday pull."; }
+  else if(wins>loss && dClicks>=0){ cls="improving"; label="Improving"; }
+  else if(loss>wins || dClicks<0){ cls="declining"; label="Needs attention"; }
+  else { cls="stable"; label="Stable"; }
+  badge.className="badge "+cls; badge.textContent=label;
+  if(prev) sum.textContent=`${wins} queries gained position, ${loss} slipped, ${news} new, ${lost} dropped out. Tracked clicks ${dClicks>=0?"+":""}${dClicks} vs ${prev}.`;
+}
+function card(lab,val,deltaEl){
+  const d=document.createElement("div"); d.className="card";
+  d.innerHTML=`<div class="lab">${lab}</div><div class="val num">${val}</div>`;
+  if(deltaEl) d.appendChild(deltaEl);
+  return d;
+}
+function delta(v,inv,isPos){
+  const e=document.createElement("div");
+  const good = isPos ? v>0 : (inv?v<0:v>0);
+  const z = Math.abs(v)<0.005;
+  e.className="delta "+(z?"flat":good?"up":"down");
+  const sign=v>0?"+":"";
+  e.textContent = z ? "no change" : `${sign}${num(v)}${isPos?" pos":""} vs last week`;
+  return e;
+}
+
+function renderQueue(queue,changes){
+  const tb=$("#queueTable tbody"); tb.innerHTML="";
+  const normP=v=>{v=String(v||"").toLowerCase(); return v.includes("urgent")?"urgent":v.includes("quick")?"quick":"strategic";};
+  const normS=v=>{v=String(v||"").toLowerCase(); return (v.includes("done")||v.includes("complete"))?"done":v.includes("progress")?"progress":"notstarted";};
+  const pLabel={urgent:"urgent",quick:"quick win",strategic:"strategic"};
+  const sLabel={notstarted:"not started",progress:"in progress",done:"done"};
+
+  // Build the set of QueueKeys (Changes col O, index 14) that have a published outcome
+  // (Changes col F, index 5). Only "published" means the live site was actually changed —
+  // held/failed/rolled-back must not mark the queue item as done.
+  const publishedKeys = new Set();
+  let latestByKey = new Map();
+  (changes && changes.rows ? changes.rows : []).forEach(r=>{
+    const outcome = String(r[5]||"").trim().toLowerCase();
+    const qKey = String(r[14]||"").trim();
+    if(!qKey) return;
+    if(outcome==="published"){
+      publishedKeys.add(qKey);
+      const ts = String(r[1]||"");
+      const existing = latestByKey.get(qKey);
+      if(!existing || ts > existing) latestByKey.set(qKey, ts);
+    }
+  });
+
+  queue.rows.forEach(q=>{
+    const p=normP(q[2]);
+    let st=normS(q[3]);
+    const key=String(q[5]||"").trim();
+    const autoCompleted = key && publishedKeys.has(key);
+    if(autoCompleted) st="done";
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${esc(q[0])}</td>
+      <td class="url" title="${esc(q[1])}">${esc(q[1])}</td>
+      <td><span class="pill ${p}">${pLabel[p]}</span></td>
+      <td><span class="pill ${st}">${sLabel[st]}</span>${autoCompleted?` <span class="small">(auto)</span>`:""}</td>
+      <td class="small num">${esc(q[4])}</td>`;
+    tb.appendChild(tr);
+  });
+  const note=$("#queueNote");
+  if(note) note.textContent = queue.live
+    ? "Current optimization priorities."
+    : "Sample starter list — current optimization priorities will populate here.";
+}
+
+function renderMovement(changes){
+  const rows = (changes && changes.rows) ? changes.rows : [];
+  // Only "published" rows changed the live site. held/failed/rolled-back are excluded.
+  const pub = rows.filter(r => String(r[5]||"").trim().toLowerCase()==="published");
+  pub.sort((a,b)=> String(b[1]).localeCompare(String(a[1])));   // newest first by Timestamp
+
+  const tb=$("#mvTable tbody"); tb.innerHTML="";
+  const note=$("#mvNote");
+  const cards=$("#mvCards"); cards.innerHTML="";
+
+  if(!pub.length){
+    if(note) note.textContent = (changes && changes.live)
+      ? "No published changes yet. This fills in as the executer publishes and the 30/60-day measurements run."
+      : "Sample view — published changes and their 30/60-day results appear here once the executer has logged a run.";
+    tb.innerHTML=`<tr><td colspan="6" class="small" style="padding:18px 10px">Nothing published yet.</td></tr>`;
+    return;
+  }
+
+  // Map a classifier verdict to a movement pill. null = not measured yet.
+  const verdict = v => {
+    v=String(v||"").trim().toLowerCase();
+    if(v==="improved")   return {c:"up",  t:"improved"};
+    if(v==="regressed")  return {c:"down",t:"regressed"};
+    if(v==="stable")     return {c:"flat",t:"stable"};
+    if(v==="superseded") return {c:"lost",t:"superseded"};
+    if(v==="n/a"||v==="na") return {c:"flat",t:"n/a"};
+    return null;
+  };
+  const day10 = s => { const d=new Date(s); return isNaN(d)? String(s||"").slice(0,10) : d.toISOString().slice(0,10); };
+  const ageDays = s => { const d=new Date(s); return isNaN(d)? null : Math.max(0, Math.floor((Date.now()-d.getTime())/86400000)); };
+  const cell = (v,due) => v
+    ? `<span class="mv ${v.c}">${v.t}</span>`
+    : `<span class="mv wait">measuring</span>${due?`<div class="small">due ${due}</div>`:""}`;
+
+  let nImproved=0, nStable=0, nRegressed=0, nPending=0;
+
+  pub.forEach(r=>{
+    const url=String(r[3]||""); const path=url.replace("https://101voice.com","")||"/";
+    const ctype=String(r[4]||"meta");
+    const age=ageDays(r[1]);
+    let base=null; try{ base=JSON.parse(r[23]||"null"); }catch(e){ base=null; }
+    const baseCell = (base && base.position!=null)
+      ? `pos ${num(base.position)} · ${(base.ctr*100).toFixed(2)}%`
+      : `<span class="small">—</span>`;
+
+    const m30=verdict(r[18]), m60=verdict(r[19]);
+    if(m30){ if(m30.t==="improved")nImproved++; else if(m30.t==="regressed")nRegressed++; else nStable++; }
+    else nPending++;
+
+    const after=String(r[24]||"").trim();
+    const afterDesc=String(r[25]||"").trim();
+    const changed = after
+      ? esc(after)
+      : `<span class="pill strategic">${esc(ctype)}</span>`;
+    const tip = esc((after?("Title: "+after):"") + (afterDesc?("\nDesc: "+afterDesc):"")) || esc(ctype);
+
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td class="url" title="${esc(url)}">${esc(path)}</td>
+      <td class="url" title="${tip}">${changed}</td>
+      <td class="num small">${baseCell}</td>
+      <td class="num small">${age==null?"—":age+"d"}</td>
+      <td>${cell(m30, day10(r[15]))}</td>
+      <td>${cell(m60, day10(r[16]))}</td>`;
+    tb.appendChild(tr);
+  });
+
+  const c=(lab,val)=>{ const d=document.createElement("div"); d.className="card";
+    d.innerHTML=`<div class="lab">${lab}</div><div class="val num">${val}</div>`; return d; };
+  cards.append(
+    c("Published", String(pub.length)),
+    c("Improved", String(nImproved)),
+    c("Stable", String(nStable)),
+    c("Regressed", String(nRegressed)),
+    c("Measuring", String(nPending))
+  );
+
+  if(note) note.textContent = changes.live
+    ? "Each published change is scored against its own pre-change baseline — CTR for meta, position for content — at 30 and 60 days. Verdicts populate once the daily measurement job runs."
+    : "Sample view — live results populate here when the Sheet is reachable.";
+}
+
+function renderKW(){
+  const tb=$("#kwTable tbody"); tb.innerHTML="";
+  let rows=KW.slice();
+  if(state.filter==="striking") rows=rows.filter(r=>r.striking);
+  else if(state.filter!=="all") rows=rows.filter(r=>r.status===state.filter);
+  rows.sort((a,b)=> state.sort==="pos"
+    ? (a.pos===null?99:a.pos)-(b.pos===null?99:b.pos)
+    : b.clicks-a.clicks);
+
+  rows.forEach(r=>{
+    const tr=document.createElement("tr");
+    let move,clickCell,posCell;
+    if(r.status==="new"){ move=`<span class="mv new">new</span>`; }
+    else if(r.status==="lost"){ move=`<span class="mv lost">dropped</span>`; }
+    else{
+      const dp=num(r.ppos-r.pos);
+      const c=dp>0.05?"up":dp<-0.05?"down":"flat";
+      const sign=dp>0?"+":"";
+      move=`<span class="mv ${c}">${c==="flat"?"±0":sign+dp}</span>`;
+    }
+    if(r.pclicks===null||r.status==="new"){ clickCell=`<b>${r.clicks}</b>`; }
+    else { const dc=r.clicks-r.pclicks; clickCell=`<span class="small">${r.pclicks}</span><span class="arrow">→</span><b>${r.clicks}</b>${dc?` <span class="small">(${dc>0?"+":""}${dc})</span>`:""}`; }
+    if(r.pos===null){ posCell=`<span class="small">—</span>`; }
+    else if(r.ppos===null){ posCell=`<b>${num(r.pos)}</b>`; }
+    else { posCell=`<span class="small">${num(r.ppos)}</span><span class="arrow">→</span><b>${num(r.pos)}</b>`; }
+
+    tr.innerHTML=`<td><b>${r.query}</b></td>
+      <td class="url" title="${r.page}">${r.page.replace("https://101voice.com","")||"/"}</td>
+      <td class="num">${clickCell}</td>
+      <td class="num">${posCell}</td>
+      <td class="num small">${fmt(r.impr)}</td>
+      <td>${move}</td>`;
+    tb.appendChild(tr);
+  });
+  if(!rows.length){ tb.innerHTML=`<tr><td colspan="6" class="small" style="padding:18px 10px">No rows in this view.</td></tr>`; }
+}
+
+function renderOpps(){
+  const el=$("#oppList"); el.innerHTML="";
+  const cur=KW.filter(r=>r.status!=="lost");
+  // high impressions / low CTR
+  const lowCtr=cur.filter(r=>r.impr>=150 && r.ctr<0.03).sort((a,b)=>b.impr-a.impr).slice(0,3);
+  // striking distance with impressions
+  const strike=cur.filter(r=>r.striking && r.impr>=50).sort((a,b)=>b.impr-a.impr).slice(0,3);
+
+  add("Seen a lot, clicked rarely", lowCtr, r=>`${fmt(r.impr)} impr · ${(r.ctr*100).toFixed(2)}% CTR · pos ${num(r.pos)} — title/intent rework`);
+  add("Close to the front page", strike, r=>`pos ${num(r.pos)} · ${fmt(r.impr)} impr — a nudge could break it into the top results`);
+  if(!el.children.length) el.innerHTML=`<p class="small">No standout opportunities in the tracked set this week.</p>`;
+
+  function add(head,list,why){
+    if(!list.length) return;
+    const h=document.createElement("p"); h.className="sec-eyebrow"; h.style.color="var(--ink-soft)"; h.style.marginTop="4px"; h.textContent=head;
+    el.appendChild(h);
+    list.forEach(r=>{
+      const d=document.createElement("div"); d.className="opp";
+      d.innerHTML=`<div class="q">${r.query} <span class="small">— ${r.page.replace("https://101voice.com","")||"/"}</span></div><div class="why">${why(r)}</div>`;
+      el.appendChild(d);
+    });
+  }
+}
+
+function renderGA4(ga4){
+  const g=ga4.rows;
+  const dates=[...new Set(g.map(r=>r[0]))].sort();
+  const cur=dates[dates.length-1];
+  const curRows=g.filter(r=>r[0]===cur);
+  const vol=r=>(r[2]!==""&&r[2]!=null)?r[2]:r[3]; // Sessions if mapped, else fallback column
+  const rows=curRows.slice().sort((a,b)=>vol(b)-vol(a)).slice(0,10);
+  const tb=$("#ga4Table tbody"); tb.innerHTML="";
+  rows.forEach(r=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td class="url" title="${esc(r[1])}">${esc(r[1])}</td>
+      <td class="num"><b>${fmt(vol(r))}</b></td>
+      <td class="num small">${(r[4]*100).toFixed(0)}%</td>
+      <td class="num small">${dur(r[6])}</td>`;
+    tb.appendChild(tr);
+  });
+  $("#ga4Table thead th:first-child").textContent = `Page · ${cur}`;
+  $("#ga4Table thead th:nth-child(2)").textContent = "Sessions";
+}
+
+/* ---- chips + sort ---- */
+$("#chips").addEventListener("click",e=>{
+  const c=e.target.closest(".chip"); if(!c)return;
+  [...$("#chips").children].forEach(x=>x.setAttribute("aria-pressed", x===c));
+  state.filter=c.dataset.f; renderKW();
+});
+document.querySelectorAll("#kwTable th.sortable").forEach(th=>{
+  th.addEventListener("click",()=>{ state.sort=th.dataset.sort; renderKW(); });
+});
+
+/* ---- go ---- */
+(async()=>{
+  const [gsc,ga4,queue,changes]=await Promise.all([
+    gvizLoad({gid:GSC_GID},GSC_SAMPLE),
+    gvizLoad({gid:GA4_GID},GA4_SAMPLE),
+    gvizLoad({sheet:"Queue"},QUEUE_SAMPLE,{dated:false}),
+    gvizLoad({sheet:"Changes"},CHANGES_SAMPLE,{dated:false})
+  ]);
+  init(gsc,ga4,queue,changes);
+})();
+</script>
+</body>
+</html>
