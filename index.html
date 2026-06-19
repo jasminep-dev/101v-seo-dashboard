@@ -400,6 +400,8 @@ function isBrand(query){
 // Hide non-keyword noise so it never reaches any panel:
 //  - blank / whitespace-only cells
 //  - spreadsheet error literals leaking in from an upstream formula (e.g. #ERROR!)
+//  - exact-match "quoted" queries: real GSC data, but long-tail research/bot searches
+//    (someone pasting a phrase or sentence in quotes) you can't optimize for one by one
 //  - queries in non-Latin scripts (Cyrillic, CJK, Arabic, ...) — a judgment call,
 //    sensible for an English-language US site. Narrow the last regex if you want to
 //    keep specific languages instead of dropping all non-Latin script.
@@ -407,6 +409,7 @@ function isJunk(query){
   const q = String(query==null?"":query).trim();
   if(!q) return true;
   if(/^#(error!?|ref!|n\/a|value!|div\/0!|name\?|null!|num!|calc!|spill!|getting_data)$/i.test(q)) return true;
+  if(/["\u201C\u201D]/.test(q)) return true; // exact-match "quoted" research/bot queries — real GSC data, but long-tail one-offs you can't optimize for
   if(/[\u0370-\u03FF\u0400-\u052F\u0530-\u058F\u0590-\u05FF\u0600-\u06FF\u0700-\u074F\u0900-\u097F\u0E00-\u0E7F\u3040-\u30FF\u3100-\u312F\u3400-\u4DBF\u4E00-\u9FFF\uA000-\uA4CF\uAC00-\uD7AF]/.test(q)) return true;
   return false;
 }
