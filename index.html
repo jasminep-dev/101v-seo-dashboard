@@ -180,6 +180,12 @@
     <p class="sec-eyebrow">In queue · legacy posts</p>
     <h2 class="sec-title">Modernization queue</h2>
     <p class="sec-note" id="modqNote">Loading modernization queue…</p>
+    <div class="chips" id="modqChips">
+      <span class="chip" data-f="all" aria-pressed="true">All</span>
+      <span class="chip" data-f="high" aria-pressed="false">High</span>
+      <span class="chip" data-f="medium" aria-pressed="false">Medium</span>
+      <span class="chip" data-f="low" aria-pressed="false">Low</span>
+    </div>
     <table id="modqTable">
       <thead><tr>
         <th>Post</th><th>Priority</th><th class="num">Decay (90d)</th><th>Status</th>
@@ -434,6 +440,24 @@ function shiftYMD(ymd, days){
   const d = new Date(Date.UTC(+m[1], +m[2]-1, +m[3]));
   d.setUTCDate(d.getUTCDate()+days);
   return d.toISOString().slice(0,10);
+}
+// Robustly turn a ModQueue/ModChanges date cell into "YYYY-MM-DD", or "" if it isn't one.
+// gvizLoad already converts real date-typed cells (gviz's "Date(y,m,d)" wrapper) to a clean
+// ISO string before this ever runs — that's the expected case. This exists for the case where
+// the cell came back as a bare NUMBER instead (e.g. the column wasn't actually typed as a date
+// in the sheet), so a stray decimal like 0.333 doesn't get stringified and shown as a "date".
+// Sheets serial dates count whole days from 1899-12-30; a real calendar date is always >> 1,
+// so anything smaller is treated as not-a-date and hidden rather than guessed at.
+function sheetDate10(v){
+  if(v===""||v==null) return "";
+  if(typeof v==="number"){
+    if(v < 1) return "";
+    const ms = Math.round((v - 25569) * 86400000); // 25569 = days between 1899-12-30 and 1970-01-01
+    const d = new Date(ms);
+    return isNaN(d) ? "" : d.toISOString().slice(0,10);
+  }
+  const m = String(v).match(/^\d{4}-\d{2}-\d{2}/);
+  return m ? m[0] : "";
 }
 function normKW(s){
   return String(s||"").toLowerCase().replace(/[^a-z0-9]/g,"");
@@ -698,21 +722,37 @@ function renderMovement(changes){
 /* ModQueue columns (modernization-queue-generator.gs): 0 Key,1 PostId,2 Title,3 Url,
    4 Impressions90d,5 Clicks90d,6 CTR,7 Position,8 DecayPct90dVsPrior,9 OppRank,10 DecayRank,
    11 BlendedRank,12 Priority,13 Status,14 ModernizedDate,15 Updated */
+let modQRows=[], modQFilter="all";
+
 function renderModQueue(modq){
+  modQRows = (modq && modq.rows) ? modq.rows.slice() : [];
+  modQRows.sort((a,b)=> (parseFloat(a[11])||999) - (parseFloat(b[11])||999)); // best (lowest) blended rank first
+
+  const note=$("#modqNote");
+  if(note) note.textContent = (modq && modq.live)
+    ? "Older blog posts that haven't been rebuilt onto the current template yet, ordered so the ones most worth doing first rise to the top. \u201CDecay\u201D means a page is steadily losing clicks even though it once earned them — those move up the list even if their total traffic looks modest today."
+    : "Sample view — populates once the weekly modernization queue has run at least once.";
+
+  renderModQueueRows();
+}
+
+function renderModQueueRows(){
   const tb=$("#modqTable tbody"); tb.innerHTML="";
-  const rows = (modq && modq.rows) ? modq.rows.slice() : [];
-  rows.sort((a,b)=> (parseFloat(a[11])||999) - (parseFloat(b[11])||999)); // best (lowest) blended rank first
+  let rows = modQRows;
+  if(modQFilter!=="all") rows = rows.filter(r=> String(r[12]||"").toLowerCase()===modQFilter);
 
   rows.forEach(r=>{
     const title=String(r[2]||""), url=String(r[3]||"");
     const path=url.replace("https://101voice.com","")||"/";
     const priority=String(r[12]||"").toLowerCase(); // high / medium / low
     const statusRaw=String(r[13]||"").toLowerCase();
-    // Status is free text in the sheet (you type "Approved" yourself) — same fuzzy-match
-    // pattern renderQueue already uses for its Status column, not an enforced enum.
-    const status = statusRaw.includes("modern") ? "done" : statusRaw.includes("approved") ? "progress" : "notstarted";
-    const statusLabel = status==="done" ? "modernized" : status==="progress" ? "approved" : "not started";
-    const modDate=String(r[14]||"").trim();
+    // Status is free text in the sheet — same fuzzy-match pattern renderQueue already uses
+    // for its own Status column, not an enforced enum. "Done" is the value that actually
+    // triggers the automatic baseline capture (see modernization-changes-ledger.gs); anything
+    // else here is just a label for your own tracking.
+    const status = statusRaw.includes("done") ? "done" : statusRaw.includes("approved")||statusRaw.includes("progress") ? "progress" : "notstarted";
+    const statusLabel = status==="done" ? "done" : status==="progress" ? "approved" : "not started";
+    const modDate=sheetDate10(r[14]);
     const decay=parseFloat(r[8]);
     const decayCell = isNaN(decay) ? `<span class="small">—</span>`
       : `<span class="delta ${decay<0?'down':decay>0?'up':'flat'}">${decay>0?'+':''}${decay}%</span>`;
@@ -725,12 +765,14 @@ function renderModQueue(modq){
     tb.appendChild(tr);
   });
 
-  const note=$("#modqNote");
-  if(note) note.textContent = (modq && modq.live)
-    ? "Legacy (pre-rebuild) posts, ranked by traffic opportunity blended with 90-day decay. Approve here, modernize via the skill, then run markModernized(postId)."
-    : "Sample view — populates once updateModernizationQueue() has run at least once.";
-  if(!rows.length) tb.innerHTML=`<tr><td colspan="4" class="small" style="padding:18px 10px">No legacy posts queued yet.</td></tr>`;
+  if(!rows.length) tb.innerHTML=`<tr><td colspan="4" class="small" style="padding:18px 10px">${modQFilter==="all" ? "No legacy posts queued yet." : "Nothing at this priority right now."}</td></tr>`;
 }
+
+$("#modqChips").addEventListener("click", e=>{
+  const c=e.target.closest(".chip"); if(!c) return;
+  [...$("#modqChips").children].forEach(x=>x.setAttribute("aria-pressed", x===c));
+  modQFilter=c.dataset.f; renderModQueueRows();
+});
 
 // Turns a raw % change into a movement pill. ±5% is a deliberately chosen noise band —
 // adjust here if real data shows that threshold calling too much (or too little) "flat".
@@ -744,7 +786,12 @@ function modVerdictCell(pct, due){
 
 /* ModChanges columns (modernization-changes-ledger.gs): 0 PostId,1 Title,2 Url,
    3 ModernizedDate,4 BaselineJson,5 Measure30Due,6 Measure60Due,7 Result30Json,
-   8 Result60Json,9 PctClicks30,10 PctClicks60,11 Notes */
+   8 Result60Json,9 PctClicks30,10 PctClicks60,11 Notes.
+   A row here only ever exists for a post whose Status actually reached "Done" — the
+   automatic trigger in modernization-changes-ledger.gs is the ONLY thing that creates a
+   ModChanges row, and it only fires on that transition. So unlike the Changes panel above
+   (which has to filter Outcome==="published" out of a mixed ledger), this table needs no
+   extra status filter — every row here already cleared that bar by construction. */
 function renderModChanges(modch){
   const rows = (modch && modch.rows) ? modch.rows.slice() : [];
   rows.sort((a,b)=> String(b[3]).localeCompare(String(a[3]))); // most recently modernized first
@@ -755,8 +802,8 @@ function renderModChanges(modch){
 
   if(!rows.length){
     if(note) note.textContent = (modch && modch.live)
-      ? "No modernizations logged yet. Run markModernized(postId) right after each push to start tracking."
-      : "Sample view — results appear here once a modernized post has been logged.";
+      ? "Nothing modernized yet. As soon as a post's Status is set to Done, it starts being tracked here."
+      : "Sample view — results appear here once a post has actually been marked Done.";
     tb.innerHTML=`<tr><td colspan="5" class="small" style="padding:18px 10px">Nothing modernized yet.</td></tr>`;
     return;
   }
@@ -764,14 +811,14 @@ function renderModChanges(modch){
   let nUp=0, nDown=0, nFlat=0, nPending=0;
   rows.forEach(r=>{
     const url=String(r[2]||""); const path=url.replace("https://101voice.com","")||"/";
-    const modDate=String(r[3]||"").slice(0,10);
+    const modDate=sheetDate10(r[3]) || "—";
     let base=null; try{ base=JSON.parse(r[4]||"null"); }catch(e){ base=null; }
     const baseCell = (base && base.clicks!=null)
       ? `${fmt(base.clicks)} clk · pos ${num(base.position)}`
       : `<span class="small">—</span>`;
     const p30=r[9], p60=r[10];
-    const c30=modVerdictCell(p30, String(r[5]||"").slice(0,10));
-    const c60=modVerdictCell(p60, String(r[6]||"").slice(0,10));
+    const c30=modVerdictCell(p30, sheetDate10(r[5]));
+    const c60=modVerdictCell(p60, sheetDate10(r[6]));
     const v30=parseFloat(p30);
     if(!isNaN(v30)){ if(v30>=5)nUp++; else if(v30<=-5)nDown++; else nFlat++; } else nPending++;
 
@@ -795,7 +842,7 @@ function renderModChanges(modch){
   );
 
   if(note) note.textContent = (modch && modch.live)
-    ? "Each modernized post is compared to its own pre-rebuild baseline (trailing 28-day clicks) at 30 and 60 days, queried fresh from Search Console."
+    ? "Each rebuilt post is compared to how it was performing right before the rebuild, checked again 30 and 60 days later."
     : "Sample view — live results populate here when the Sheet is reachable.";
 }
 
