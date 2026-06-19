@@ -90,6 +90,9 @@
   .pill.done{background:#EAEFF4;color:#5A6B82}
   .pill.progress{background:#FBF1DF;color:var(--amber)}
   .pill.notstarted{background:#F4F6F9;color:#6B7A8E}
+  .pill.high{background:#FBE9E7;color:var(--down)}
+  .pill.medium{background:#FBF1DF;color:var(--amber)}
+  .pill.low{background:#EAEFF4;color:#5A6B82}
 
   /* movement pills */
   .mv{display:inline-block;font-weight:700;font-size:12.5px;padding:1px 7px;border-radius:6px;white-space:nowrap}
@@ -167,6 +170,33 @@
     <table id="mvTable" style="margin-top:14px">
       <thead><tr>
         <th>Page</th><th>Changed to</th><th class="num">At push</th><th class="num">Age</th><th>30-day</th><th>60-day</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- modernization queue -->
+  <section class="panel">
+    <p class="sec-eyebrow">In queue · legacy posts</p>
+    <h2 class="sec-title">Modernization queue</h2>
+    <p class="sec-note" id="modqNote">Loading modernization queue…</p>
+    <table id="modqTable">
+      <thead><tr>
+        <th>Post</th><th>Priority</th><th class="num">Decay (90d)</th><th>Status</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- modernization results -->
+  <section class="panel">
+    <p class="sec-eyebrow">Impact · modernized posts</p>
+    <h2 class="sec-title">Modernization results</h2>
+    <p class="sec-note" id="modchNote">Loading modernization results…</p>
+    <div class="cards" id="modchCards"></div>
+    <table id="modchTable" style="margin-top:14px">
+      <thead><tr>
+        <th>Post</th><th class="num">Modernized</th><th class="num">At push</th><th>30-day</th><th>60-day</th>
       </tr></thead>
       <tbody></tbody>
     </table>
@@ -331,6 +361,12 @@ const CHANGES_SAMPLE = [
     after:""}),
 ];
 
+/* Modernization queue / results — left genuinely empty rather than fabricated. Neither tab
+   has run yet, so there's no real legacy-post list or rebuild result to show a placeholder
+   for; the empty-state copy in renderModQueue/renderModChanges explains why instead. */
+const MODQUEUE_SAMPLE = [];
+const MODCHANGES_SAMPLE = [];
+
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const num = n => (Math.round(n*100)/100);
@@ -367,8 +403,8 @@ function gvizLoad(q, sample, opts){
             if(m) v=m[1]+"-"+String(+m[2]+1).padStart(2,"0")+"-"+String(+m[3]).padStart(2,"0"); }
           return (v===null||v===undefined)?"":v;
         }));
-        if(opts.dated===false) // queue/changes tabs: keep non-empty rows, drop a stray header row
-          rows=rows.filter(r=>{ const v=String(r[0]).trim().toLowerCase(); return v!=="" && v!=="action" && v!=="changeid"; });
+        if(opts.dated===false) // queue/changes/modqueue/modchanges tabs: keep non-empty rows, drop a stray header row
+          rows=rows.filter(r=>{ const v=String(r[0]).trim().toLowerCase(); return v!=="" && v!=="action" && v!=="changeid" && v!=="key" && v!=="postid"; });
         else                   // GSC/GA4: keep dated rows only
           rows=rows.filter(r=>/^\d{4}-\d{2}-\d{2}/.test(String(r[0])));
         finish({rows: rows.length?rows:sample, live: rows.length>0});
@@ -425,7 +461,7 @@ function isJunk(query){
 
 let KW=[], state={filter:"all",sort:"clicks"};
 
-function init(gsc,ga4,queue,changes){
+function init(gsc,ga4,queue,changes,modqueue,modchanges){
   const liveFlag = gsc.live || ga4.live;
   const sf=$("#srcFlag");
   if(liveFlag){ sf.className="srcflag live"; sf.textContent="Live — reading 101VOICE Weekly SEO Data"; }
@@ -454,6 +490,8 @@ function init(gsc,ga4,queue,changes){
   renderHeadline(prev);
   renderQueue(queue,changes);
   renderMovement(changes);
+  renderModQueue(modqueue);
+  renderModChanges(modchanges);
   renderKW();
   renderOpps(queue);
   renderGA4(ga4);
@@ -657,6 +695,110 @@ function renderMovement(changes){
     : "Sample view — live results populate here when the Sheet is reachable.";
 }
 
+/* ModQueue columns (modernization-queue-generator.gs): 0 Key,1 PostId,2 Title,3 Url,
+   4 Impressions90d,5 Clicks90d,6 CTR,7 Position,8 DecayPct90dVsPrior,9 OppRank,10 DecayRank,
+   11 BlendedRank,12 Priority,13 Status,14 ModernizedDate,15 Updated */
+function renderModQueue(modq){
+  const tb=$("#modqTable tbody"); tb.innerHTML="";
+  const rows = (modq && modq.rows) ? modq.rows.slice() : [];
+  rows.sort((a,b)=> (parseFloat(a[11])||999) - (parseFloat(b[11])||999)); // best (lowest) blended rank first
+
+  rows.forEach(r=>{
+    const title=String(r[2]||""), url=String(r[3]||"");
+    const path=url.replace("https://101voice.com","")||"/";
+    const priority=String(r[12]||"").toLowerCase(); // high / medium / low
+    const statusRaw=String(r[13]||"").toLowerCase();
+    // Status is free text in the sheet (you type "Approved" yourself) — same fuzzy-match
+    // pattern renderQueue already uses for its Status column, not an enforced enum.
+    const status = statusRaw.includes("modern") ? "done" : statusRaw.includes("approved") ? "progress" : "notstarted";
+    const statusLabel = status==="done" ? "modernized" : status==="progress" ? "approved" : "not started";
+    const modDate=String(r[14]||"").trim();
+    const decay=parseFloat(r[8]);
+    const decayCell = isNaN(decay) ? `<span class="small">—</span>`
+      : `<span class="delta ${decay<0?'down':decay>0?'up':'flat'}">${decay>0?'+':''}${decay}%</span>`;
+
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td><b>${esc(title)}</b><div class="small">${esc(path)}</div></td>
+      <td><span class="pill ${priority||'low'}">${esc(r[12]||"—")}</span></td>
+      <td class="num">${decayCell}</td>
+      <td><span class="pill ${status}">${statusLabel}</span>${modDate && status==="done" ? ` <span class="small">(${esc(modDate)})</span>` : ""}</td>`;
+    tb.appendChild(tr);
+  });
+
+  const note=$("#modqNote");
+  if(note) note.textContent = (modq && modq.live)
+    ? "Legacy (pre-rebuild) posts, ranked by traffic opportunity blended with 90-day decay. Approve here, modernize via the skill, then run markModernized(postId)."
+    : "Sample view — populates once updateModernizationQueue() has run at least once.";
+  if(!rows.length) tb.innerHTML=`<tr><td colspan="4" class="small" style="padding:18px 10px">No legacy posts queued yet.</td></tr>`;
+}
+
+// Turns a raw % change into a movement pill. ±5% is a deliberately chosen noise band —
+// adjust here if real data shows that threshold calling too much (or too little) "flat".
+function modVerdictCell(pct, due){
+  const v=parseFloat(pct);
+  if(pct===""||pct==null||isNaN(v)) return `<span class="mv wait">measuring</span>${due?`<div class="small">due ${due}</div>`:""}`;
+  const cls = v>=5 ? "up" : v<=-5 ? "down" : "flat";
+  const sign = v>0?"+":"";
+  return `<span class="mv ${cls}">${sign}${v}% clicks</span>`;
+}
+
+/* ModChanges columns (modernization-changes-ledger.gs): 0 PostId,1 Title,2 Url,
+   3 ModernizedDate,4 BaselineJson,5 Measure30Due,6 Measure60Due,7 Result30Json,
+   8 Result60Json,9 PctClicks30,10 PctClicks60,11 Notes */
+function renderModChanges(modch){
+  const rows = (modch && modch.rows) ? modch.rows.slice() : [];
+  rows.sort((a,b)=> String(b[3]).localeCompare(String(a[3]))); // most recently modernized first
+
+  const tb=$("#modchTable tbody"); tb.innerHTML="";
+  const note=$("#modchNote");
+  const cards=$("#modchCards"); cards.innerHTML="";
+
+  if(!rows.length){
+    if(note) note.textContent = (modch && modch.live)
+      ? "No modernizations logged yet. Run markModernized(postId) right after each push to start tracking."
+      : "Sample view — results appear here once a modernized post has been logged.";
+    tb.innerHTML=`<tr><td colspan="5" class="small" style="padding:18px 10px">Nothing modernized yet.</td></tr>`;
+    return;
+  }
+
+  let nUp=0, nDown=0, nFlat=0, nPending=0;
+  rows.forEach(r=>{
+    const url=String(r[2]||""); const path=url.replace("https://101voice.com","")||"/";
+    const modDate=String(r[3]||"").slice(0,10);
+    let base=null; try{ base=JSON.parse(r[4]||"null"); }catch(e){ base=null; }
+    const baseCell = (base && base.clicks!=null)
+      ? `${fmt(base.clicks)} clk · pos ${num(base.position)}`
+      : `<span class="small">—</span>`;
+    const p30=r[9], p60=r[10];
+    const c30=modVerdictCell(p30, String(r[5]||"").slice(0,10));
+    const c60=modVerdictCell(p60, String(r[6]||"").slice(0,10));
+    const v30=parseFloat(p30);
+    if(!isNaN(v30)){ if(v30>=5)nUp++; else if(v30<=-5)nDown++; else nFlat++; } else nPending++;
+
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td class="url" title="${esc(url)}"><b>${esc(String(r[1]||""))}</b><div class="small">${esc(path)}</div></td>
+      <td class="num small">${modDate}</td>
+      <td class="num small">${baseCell}</td>
+      <td>${c30}</td>
+      <td>${c60}</td>`;
+    tb.appendChild(tr);
+  });
+
+  const c=(lab,val)=>{ const d=document.createElement("div"); d.className="card";
+    d.innerHTML=`<div class="lab">${lab}</div><div class="val num">${val}</div>`; return d; };
+  cards.append(
+    c("Modernized", String(rows.length)),
+    c("Up \u2265 5% clicks", String(nUp)),
+    c("Flat", String(nFlat)),
+    c("Down \u2265 5% clicks", String(nDown)),
+    c("Measuring", String(nPending))
+  );
+
+  if(note) note.textContent = (modch && modch.live)
+    ? "Each modernized post is compared to its own pre-rebuild baseline (trailing 28-day clicks) at 30 and 60 days, queried fresh from Search Console."
+    : "Sample view — live results populate here when the Sheet is reachable.";
+}
+
 function renderKW(){
   const tb=$("#kwTable tbody"); tb.innerHTML="";
   let rows=KW.slice();
@@ -757,13 +899,15 @@ document.querySelectorAll("#kwTable th.sortable").forEach(th=>{
 
 /* ---- go ---- */
 (async()=>{
-  const [gsc,ga4,queue,changes]=await Promise.all([
+  const [gsc,ga4,queue,changes,modqueue,modchanges]=await Promise.all([
     gvizLoad({gid:GSC_GID},GSC_SAMPLE),
     gvizLoad({gid:GA4_GID},GA4_SAMPLE),
     gvizLoad({sheet:"Queue"},QUEUE_SAMPLE,{dated:false}),
-    gvizLoad({sheet:"Changes"},CHANGES_SAMPLE,{dated:false})
+    gvizLoad({sheet:"Changes"},CHANGES_SAMPLE,{dated:false}),
+    gvizLoad({sheet:"ModQueue"},MODQUEUE_SAMPLE,{dated:false}),
+    gvizLoad({sheet:"ModChanges"},MODCHANGES_SAMPLE,{dated:false})
   ]);
-  init(gsc,ga4,queue,changes);
+  init(gsc,ga4,queue,changes,modqueue,modchanges);
 })();
 </script>
 </body>
