@@ -200,8 +200,8 @@
   <div class="twocol">
     <!-- opportunities -->
     <section class="panel">
-      <p class="sec-eyebrow">Worth a look</p>
-      <h2 class="sec-title">Opportunities</h2>
+      <p class="sec-eyebrow">Worth a look · not yet queued</p>
+      <h2 class="sec-title">Other opportunities</h2>
       <div id="oppList"></div>
     </section>
 
@@ -397,6 +397,19 @@ function isBrand(query){
   const q = normKW(query);
   return BRAND_TERMS.some(t => q.includes(t));
 }
+// Hide non-keyword noise so it never reaches any panel:
+//  - blank / whitespace-only cells
+//  - spreadsheet error literals leaking in from an upstream formula (e.g. #ERROR!)
+//  - queries in non-Latin scripts (Cyrillic, CJK, Arabic, ...) — a judgment call,
+//    sensible for an English-language US site. Narrow the last regex if you want to
+//    keep specific languages instead of dropping all non-Latin script.
+function isJunk(query){
+  const q = String(query==null?"":query).trim();
+  if(!q) return true;
+  if(/^#(error!?|ref!|n\/a|value!|div\/0!|name\?|null!|num!|calc!|spill!|getting_data)$/i.test(q)) return true;
+  if(/[\u0370-\u03FF\u0400-\u052F\u0530-\u058F\u0590-\u05FF\u0600-\u06FF\u0700-\u074F\u0900-\u097F\u0E00-\u0E7F\u3040-\u30FF\u3100-\u312F\u3400-\u4DBF\u4E00-\u9FFF\uA000-\uA4CF\uAC00-\uD7AF]/.test(q)) return true;
+  return false;
+}
 
 let KW=[], state={filter:"all",sort:"clicks"};
 
@@ -406,7 +419,7 @@ function init(gsc,ga4,queue,changes){
   if(liveFlag){ sf.className="srcflag live"; sf.textContent="Live — reading 101VOICE Weekly SEO Data"; }
 
   /* ---- GSC: find latest two snapshot dates ---- */
-  const g=gsc.rows.filter(r=>!isBrand(r[2]));
+  const g=gsc.rows.filter(r=>!isBrand(r[2]) && !isJunk(r[2]));
   const dates=[...new Set(g.map(r=>r[0]))].sort();
   const cur=dates[dates.length-1], prev=dates[dates.length-2];
   $("#periodBox").innerHTML = prev
@@ -429,7 +442,7 @@ function init(gsc,ga4,queue,changes){
   renderQueue(queue,changes);
   renderMovement(changes);
   renderKW();
-  renderOpps();
+  renderOpps(queue);
   renderGA4(ga4);
 }
 
@@ -532,6 +545,8 @@ function renderQueue(queue,changes){
     const p=normP(q[2]);
     let st=normS(q[3]);
     const key=String(q[5]||"").trim();
+    const qPart = key.indexOf("|")>=0 ? key.split("|")[0] : String(q[0]||"");
+    if(isJunk(qPart)) return; // hide junk-keyword rows (empty / #ERROR! / non-Latin)
     const autoCompleted = key && publishedKeys.has(key);
     if(autoCompleted) st="done";
     const tr=document.createElement("tr");
@@ -666,9 +681,13 @@ function renderKW(){
   if(!rows.length){ tb.innerHTML=`<tr><td colspan="6" class="small" style="padding:18px 10px">No rows in this view.</td></tr>`; }
 }
 
-function renderOpps(){
+function renderOpps(queue){
   const el=$("#oppList"); el.innerHTML="";
-  const cur=KW.filter(r=>r.status!=="lost");
+  // Exclude pages already on the priorities queue, so this panel surfaces only
+  // opportunities NOT yet captured by the queue — a gap-finder, not a restatement.
+  const normU = u => String(u||"").toLowerCase().replace(/^https?:\/\//,"").replace(/\/$/,"");
+  const queued = new Set((queue && queue.rows ? queue.rows : []).map(q=>normU(q[1])));
+  const cur=KW.filter(r=>r.status!=="lost" && !queued.has(normU(r.page)));
   // high impressions / low CTR
   const lowCtr=cur.filter(r=>r.impr>=150 && r.ctr<0.03).sort((a,b)=>b.impr-a.impr).slice(0,3);
   // striking distance with impressions
@@ -676,7 +695,7 @@ function renderOpps(){
 
   add("Seen a lot, clicked rarely", lowCtr, r=>`${fmt(r.impr)} impr · ${(r.ctr*100).toFixed(2)}% CTR · pos ${num(r.pos)} — title/intent rework`);
   add("Close to the front page", strike, r=>`pos ${num(r.pos)} · ${fmt(r.impr)} impr — a nudge could break it into the top results`);
-  if(!el.children.length) el.innerHTML=`<p class="small">No standout opportunities in the tracked set this week.</p>`;
+  if(!el.children.length) el.innerHTML=`<p class="small">Nothing outside the current queue right now — the priorities list already covers the live opportunities.</p>`;
 
   function add(head,list,why){
     if(!list.length) return;
