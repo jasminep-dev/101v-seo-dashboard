@@ -390,6 +390,15 @@ const BRAND_TERMS = [
   "101voice","101voices","voice101","101voicephones",
   "101voicelogin","101voicecom","www101voice"
 ];
+// Shift a YYYY-MM-DD string by N days (UTC, no timezone drift). Used to turn a
+// snapshot's stamped run-date into the trailing-28-day window it actually covers.
+function shiftYMD(ymd, days){
+  const m = String(ymd).match(/(\d{4})-(\d{2})-(\d{2})/);
+  if(!m) return String(ymd||"");
+  const d = new Date(Date.UTC(+m[1], +m[2]-1, +m[3]));
+  d.setUTCDate(d.getUTCDate()+days);
+  return d.toISOString().slice(0,10);
+}
 function normKW(s){
   return String(s||"").toLowerCase().replace(/[^a-z0-9]/g,"");
 }
@@ -425,9 +434,10 @@ function init(gsc,ga4,queue,changes){
   const g=gsc.rows.filter(r=>!isBrand(r[2]) && !isJunk(r[2]));
   const dates=[...new Set(g.map(r=>r[0]))].sort();
   const cur=dates[dates.length-1], prev=dates[dates.length-2];
+  const curEnd = shiftYMD(cur,-1), prevEnd = prev ? shiftYMD(prev,-1) : null;
   $("#periodBox").innerHTML = prev
-    ? `Current snapshot <b>${cur}</b><br>vs previous <b>${prev}</b>`
-    : `Current snapshot <b>${cur}</b><br><span style="color:#8aa">(no prior week yet — movement starts next Monday)</span>`;
+    ? `Current: <b>28 days to ${curEnd}</b><br>vs previous: <b>28 days to ${prevEnd}</b>`
+    : `Current: <b>28 days to ${curEnd}</b><br><span style="color:#8aa">(no prior window yet — movement starts next Monday)</span>`;
 
   const key=r=>r[2]+" @ "+r[1];
   const mapC=new Map(), mapP=new Map();
@@ -728,7 +738,10 @@ function renderGA4(ga4){
       <td class="num small">${dur(r[6])}</td>`;
     tb.appendChild(tr);
   });
-  $("#ga4Table thead th:first-child").textContent = `Page · ${cur}`;
+  const ga4End = shiftYMD(cur,-1), ga4Start = shiftYMD(cur,-28);
+  const ga4Th = $("#ga4Table thead th:first-child");
+  ga4Th.textContent = `Page · 28 days to ${ga4End}`;
+  ga4Th.title = `Trailing 28-day window: ${ga4Start} \u2192 ${ga4End} (pulled ${cur})`;
   $("#ga4Table thead th:nth-child(2)").textContent = "Sessions";
 }
 
