@@ -161,6 +161,14 @@
     <p class="sec-eyebrow">In queue</p>
     <h2 class="sec-title">Optimization queue &amp; status</h2>
     <p class="sec-note" id="queueNote">Loading queue…</p>
+    <div class="chips" id="queueChips">
+      <span class="chip" data-f="all" aria-pressed="true">All</span>
+      <span class="chip" data-f="urgent" aria-pressed="false">Urgent</span>
+      <span class="chip" data-f="strategic" aria-pressed="false">Strategic</span>
+      <span class="chip" data-f="technical" aria-pressed="false">Technical</span>
+      <span class="chip" data-f="quick" aria-pressed="false">Quick win</span>
+      <span class="chip" data-f="opportunity" aria-pressed="false">Opportunity</span>
+    </div>
     <table id="queueTable">
       <thead><tr>
         <th>Action</th><th>Target</th><th>Priority</th><th>Status</th><th>Flagged</th>
@@ -175,6 +183,15 @@
     <h2 class="sec-title">What our updates are doing</h2>
     <p class="sec-note" id="mvNote">Loading change results…</p>
     <div class="cards" id="mvCards"></div>
+    <div class="chips" id="mvChips">
+      <span class="chip" data-f="all" aria-pressed="true">All</span>
+      <span class="chip" data-f="urgent" aria-pressed="false">Urgent</span>
+      <span class="chip" data-f="strategic" aria-pressed="false">Strategic</span>
+      <span class="chip" data-f="technical" aria-pressed="false">Technical</span>
+      <span class="chip" data-f="quick" aria-pressed="false">Quick win</span>
+      <span class="chip" data-f="opportunity" aria-pressed="false">Opportunity</span>
+      <span class="chip" data-f="untracked" aria-pressed="false">Untracked</span>
+    </div>
     <table id="mvTable" style="margin-top:14px">
       <thead><tr>
         <th>Page</th><th>Changed to</th><th class="num">At push</th><th class="num">Age</th><th>30-day</th><th>60-day</th>
@@ -589,8 +606,9 @@ const normP=v=>{v=String(v||"").toLowerCase();
   return v.includes("urgent")?"urgent":v.includes("technical")?"technical":v.includes("opportunity")?"opportunity":v.includes("quick")?"quick":"strategic";};
 const pLabel={urgent:"urgent",quick:"quick win",strategic:"strategic",technical:"technical",opportunity:"opportunity"};
 
+let queueRows = [], queuePriorityFilter = "all";
+
 function renderQueue(queue,changes){
-  const tb=$("#queueTable tbody"); tb.innerHTML="";
   const normS=v=>{v=String(v||"").toLowerCase(); return (v.includes("done")||v.includes("complete"))?"done":v.includes("progress")?"progress":"notstarted";};
   const sLabel={notstarted:"not started",progress:"in progress",done:"done"};
 
@@ -598,47 +616,62 @@ function renderQueue(queue,changes){
   // (Changes col F, index 5). Only "published" means the live site was actually changed —
   // held/failed/rolled-back must not mark the queue item as done.
   const publishedKeys = new Set();
-  let latestByKey = new Map();
   (changes && changes.rows ? changes.rows : []).forEach(r=>{
     const outcome = String(r[5]||"").trim().toLowerCase();
     const qKey = String(r[14]||"").trim();
-    if(!qKey) return;
-    if(outcome==="published"){
-      publishedKeys.add(qKey);
-      const ts = String(r[1]||"");
-      const existing = latestByKey.get(qKey);
-      if(!existing || ts > existing) latestByKey.set(qKey, ts);
-    }
+    if(qKey && outcome==="published") publishedKeys.add(qKey);
   });
 
-  let shown=0;
+  queueRows = [];
   queue.rows.forEach(q=>{
     const p=normP(q[2]);
     let st=normS(q[3]);
     const key=String(q[5]||"").trim();
     const qPart = key.indexOf("|")>=0 ? key.split("|")[0] : String(q[0]||"");
     if(isJunk(qPart)) return; // hide junk-keyword rows (empty / #ERROR! / non-Latin)
-    const autoCompleted = key && publishedKeys.has(key);
-    if(autoCompleted) st="done";
+    if(key && publishedKeys.has(key)) st="done";
     // Done rows are no longer shown here — they already have a full record (baseline,
     // 30/60-day measurement) in "What our updates are doing" below. Showing the same
     // page twice, once frozen and once live, just duplicates the same information.
     if(st==="done") return;
-    shown++;
-    const tr=document.createElement("tr");
-    tr.innerHTML=`<td>${esc(q[0])}</td>
-      <td class="url" title="${esc(q[1])}">${esc(q[1])}</td>
-      <td><span class="pill ${p}">${pLabel[p]}</span></td>
-      <td><span class="pill ${st}">${sLabel[st]}</span></td>
-      <td class="small num">${esc(q[4])}</td>`;
-    tb.appendChild(tr);
+    queueRows.push({ action:q[0], target:q[1], priority:p, status:st, flagged:q[4] });
   });
-  if(!shown) tb.innerHTML = `<tr><td colspan="5" class="small" style="padding:18px 10px">Nothing pending — everything currently queued has already been published (see "What our updates are doing" below).</td></tr>`;
+
   const note=$("#queueNote");
   if(note) note.textContent = queue.live
     ? "Current optimization priorities not yet pushed live. Published items move to the results panel below."
     : "Sample starter list — current optimization priorities will populate here.";
+
+  renderQueueRows();
 }
+
+function renderQueueRows(){
+  const tb=$("#queueTable tbody"); tb.innerHTML="";
+  const sLabel={notstarted:"not started",progress:"in progress",done:"done"};
+  let rows = queuePriorityFilter==="all" ? queueRows : queueRows.filter(r=>r.priority===queuePriorityFilter);
+
+  rows.forEach(r=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${esc(r.action)}</td>
+      <td class="url" title="${esc(r.target)}">${esc(r.target)}</td>
+      <td><span class="pill ${r.priority}">${pLabel[r.priority]}</span></td>
+      <td><span class="pill ${r.status}">${sLabel[r.status]}</span></td>
+      <td class="small num">${esc(r.flagged)}</td>`;
+    tb.appendChild(tr);
+  });
+  if(!rows.length) tb.innerHTML = `<tr><td colspan="5" class="small" style="padding:18px 10px">${
+    queueRows.length ? "Nothing at this priority right now." :
+    "Nothing pending — everything currently queued has already been published (see \"What our updates are doing\" below)."
+  }</td></tr>`;
+}
+
+$("#queueChips").addEventListener("click", e=>{
+  const c=e.target.closest(".chip"); if(!c) return;
+  [...$("#queueChips").children].forEach(x=>x.setAttribute("aria-pressed", x===c));
+  queuePriorityFilter=c.dataset.f; renderQueueRows();
+});
+
+let mvRows = [], mvPriorityFilter = "all";
 
 function renderMovement(queue, changes){
   const rows = (changes && changes.rows) ? changes.rows : [];
@@ -646,7 +679,6 @@ function renderMovement(queue, changes){
   const pub = rows.filter(r => String(r[5]||"").trim().toLowerCase()==="published");
   pub.sort((a,b)=> String(b[1]).localeCompare(String(a[1])));   // newest first by Timestamp
 
-  const tb=$("#mvTable tbody"); tb.innerHTML="";
   const note=$("#mvNote");
   const cards=$("#mvCards"); cards.innerHTML="";
 
@@ -654,7 +686,8 @@ function renderMovement(queue, changes){
     if(note) note.textContent = (changes && changes.live)
       ? "No published changes yet. This fills in as the executer publishes and the 30/60-day measurements run."
       : "Sample view — published changes and their 30/60-day results appear here once the executer has logged a run.";
-    tb.innerHTML=`<tr><td colspan="6" class="small" style="padding:18px 10px">Nothing published yet.</td></tr>`;
+    $("#mvTable tbody").innerHTML=`<tr><td colspan="6" class="small" style="padding:18px 10px">Nothing published yet.</td></tr>`;
+    mvRows = [];
     return;
   }
 
@@ -692,18 +725,15 @@ function renderMovement(queue, changes){
   };
   const day10 = s => { const d=new Date(s); return isNaN(d)? String(s||"").slice(0,10) : d.toISOString().slice(0,10); };
   const ageDays = s => { const d=new Date(s); return isNaN(d)? null : Math.max(0, Math.floor((Date.now()-d.getTime())/86400000)); };
-  const cell = (v,due) => v
-    ? `<span class="mv ${v.c}">${v.t}</span>`
-    : `<span class="mv wait">measuring</span>${due?`<div class="small">due ${due}</div>`:""}`;
 
   let nImproved=0, nStable=0, nRegressed=0, nPending=0;
+  mvRows = [];
 
   pub.forEach(r=>{
     const url=String(r[3]||""); const path=url.replace("https://101voice.com","")||"/";
     const ctype=String(r[4]||"meta");
     const age=ageDays(r[1]);
     let base=null; try{ base=JSON.parse(r[23]||"null"); }catch(e){ base=null; }
-    // Shows impressions, CTR, and position at the moment of push — e.g. "7,992 impr · 0.3% CTR · pos 7.6"
     const baseCell = (base && base.position!=null)
       ? `${fmt(base.impressions||0)} impr · ${((base.ctr||0)*100).toFixed(1)}% CTR · pos ${num(base.position)}`
       : `<span class="small">—</span>`;
@@ -712,24 +742,23 @@ function renderMovement(queue, changes){
     if(m30){ if(m30.t==="improved")nImproved++; else if(m30.t==="regressed")nRegressed++; else nStable++; }
     else nPending++;
 
-    const pr = resolvePriority(r[14]);
+    const pr = resolvePriority(r[14]); // null -> "untracked" bucket for filtering
     const prPill = pr ? `<span class="pill ${pr}">${pLabel[pr]}</span> ` : `<span class="pill notstarted">untracked</span> `;
 
     const after=String(r[24]||"").trim();
     const afterDesc=String(r[25]||"").trim();
-    const changed = prPill + (after
-      ? esc(after)
-      : `<span class="pill strategic">${esc(ctype)}</span>`);
+    const changed = prPill + (after ? esc(after) : `<span class="pill strategic">${esc(ctype)}</span>`);
     const tip = esc((after?("Title: "+after):"") + (afterDesc?("\nDesc: "+afterDesc):"")) || esc(ctype);
 
-    const tr=document.createElement("tr");
-    tr.innerHTML=`<td class="url" title="${esc(url)}">${esc(path)}</td>
-      <td class="url" title="${tip}">${changed}</td>
-      <td class="num small">${baseCell}</td>
-      <td class="num small">${age==null?"—":age+"d"}</td>
-      <td>${cell(m30, day10(r[15]))}</td>
-      <td>${cell(m60, day10(r[16]))}</td>`;
-    tb.appendChild(tr);
+    mvRows.push({
+      priority: pr || "untracked",
+      html: `<td class="url" title="${esc(url)}">${esc(path)}</td>
+        <td class="url" title="${tip}">${changed}</td>
+        <td class="num small">${baseCell}</td>
+        <td class="num small">${age==null?"—":age+"d"}</td>
+        <td>${(m30?`<span class="mv ${m30.c}">${m30.t}</span>`:`<span class="mv wait">measuring</span>${day10(r[15])?`<div class="small">due ${day10(r[15])}</div>`:""}`)}</td>
+        <td>${(m60?`<span class="mv ${m60.c}">${m60.t}</span>`:`<span class="mv wait">measuring</span>${day10(r[16])?`<div class="small">due ${day10(r[16])}</div>`:""}`)}</td>`,
+    });
   });
 
   const c=(lab,val)=>{ const d=document.createElement("div"); d.className="card";
@@ -745,7 +774,26 @@ function renderMovement(queue, changes){
   if(note) note.textContent = changes.live
     ? "Each published change is scored against its own pre-change baseline — CTR for meta, position for content — at 30 and 60 days. Verdicts populate once the daily measurement job runs."
     : "Sample view — live results populate here when the Sheet is reachable.";
+
+  renderMovementRows();
 }
+
+function renderMovementRows(){
+  const tb=$("#mvTable tbody"); tb.innerHTML="";
+  let rows = mvPriorityFilter==="all" ? mvRows : mvRows.filter(r=>r.priority===mvPriorityFilter);
+  rows.forEach(r=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=r.html;
+    tb.appendChild(tr);
+  });
+  if(!rows.length) tb.innerHTML=`<tr><td colspan="6" class="small" style="padding:18px 10px">Nothing at this priority right now.</td></tr>`;
+}
+
+$("#mvChips").addEventListener("click", e=>{
+  const c=e.target.closest(".chip"); if(!c) return;
+  [...$("#mvChips").children].forEach(x=>x.setAttribute("aria-pressed", x===c));
+  mvPriorityFilter=c.dataset.f; renderMovementRows();
+});
 
 /* ModQueue columns (modernization-queue-generator.gs): 0 Key,1 PostId,2 Title,3 Url,
    4 Impressions90d,5 Clicks90d,6 CTR,7 Position,8 DecayPct90dVsPrior,9 OppRank,10 DecayRank,
