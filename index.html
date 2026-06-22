@@ -47,6 +47,7 @@
   .top h1{font-size:21px;font-weight:800;margin:3px 0 0;letter-spacing:-.01em}
   .top .period{font-size:12.5px;color:#AEBDD2;text-align:right;line-height:1.6}
   .top .period b{color:#fff;font-weight:600}
+  .top .period .refresh-note{font-size:11px;color:#7E92AC;margin-top:4px}
   .srcflag{display:inline-block;font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;margin-top:6px}
   .srcflag.sample{background:#3A2A12;color:#F2B468;border:1px solid #6a4a1d}
   .srcflag.live{background:#10341f;color:#5FD39A;border:1px solid #1f6a40}
@@ -141,7 +142,10 @@
     <h1>Weekly SEO Movement</h1>
     <span id="srcFlag" class="srcflag sample">Sample data</span>
   </div>
-  <div class="period" id="periodBox">Loading…</div>
+  <div class="period">
+    <div id="periodBox">Loading…</div>
+    <div class="refresh-note">Refreshed every Monday morning, comparing the current week against the prior week.</div>
+  </div>
 </header>
 
 <main>
@@ -254,14 +258,6 @@
     </table>
   </section>
 
-  <!-- how it updates -->
-  <section class="panel">
-    <p class="sec-eyebrow">Staying current</p>
-    <h2 class="sec-title">How this refreshes</h2>
-    <p class="footer-note">
-      This dashboard reflects a fresh search performance snapshot pulled every <b>Monday morning</b>, comparing the current week against the prior week.
-    </p>
-  </section>
 </main>
 
 <script>
