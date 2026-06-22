@@ -131,6 +131,15 @@
   .showmore{display:inline-block;margin-top:12px;font-size:12.5px;font-weight:600;color:var(--orange);background:none;border:1px solid var(--line);border-radius:8px;padding:7px 14px;cursor:pointer}
   .showmore:hover{background:var(--chip)}
 
+  .legend{margin:0 0 14px}
+  .legend summary{font-size:12px;font-weight:600;color:var(--ink-soft);cursor:pointer;list-style:none}
+  .legend summary::-webkit-details-marker{display:none}
+  .legend summary::before{content:"▸ ";color:var(--orange)}
+  .legend[open] summary::before{content:"▾ "}
+  .legend dl{margin:8px 0 0;font-size:12.5px;color:var(--ink-soft);display:grid;grid-template-columns:max-content 1fr;gap:4px 10px}
+  .legend dt{font-weight:700}
+  .legend dd{margin:0}
+
   @media (prefers-reduced-motion:no-preference){
     .panel{animation:rise .4s ease both}
     @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
@@ -169,6 +178,7 @@
       <span class="chip" data-f="quick" aria-pressed="false">Quick win</span>
       <span class="chip" data-f="opportunity" aria-pressed="false">Opportunity</span>
     </div>
+    <div id="queueLegend"></div>
     <table id="queueTable">
       <thead><tr>
         <th>Action</th><th>Target</th><th>Priority</th><th>Status</th><th>Flagged</th>
@@ -192,6 +202,7 @@
       <span class="chip" data-f="opportunity" aria-pressed="false">Opportunity</span>
       <span class="chip" data-f="untracked" aria-pressed="false">Untracked</span>
     </div>
+    <div id="mvLegend"></div>
     <table id="mvTable" style="margin-top:14px">
       <thead><tr>
         <th>Page</th><th>Changed to</th><th class="num">At push</th><th class="num">Age</th><th>30-day</th><th>60-day</th>
@@ -605,6 +616,27 @@ const PRIORITY_ORDER = ["urgent","strategic","technical","quick","opportunity"];
 const normP=v=>{v=String(v||"").toLowerCase();
   return v.includes("urgent")?"urgent":v.includes("technical")?"technical":v.includes("opportunity")?"opportunity":v.includes("quick")?"quick":"strategic";};
 const pLabel={urgent:"urgent",quick:"quick win",strategic:"strategic",technical:"technical",opportunity:"opportunity"};
+
+// One set of descriptions, injected into both sections below, so the wording can't drift
+// apart between "Optimization queue & status" and "What our updates are doing" over time.
+const PRIORITY_DESCRIPTIONS = {
+  urgent: "A query that dropped 2+ positions week-over-week (with at least 20 impressions) — something that was working and is now slipping.",
+  strategic: "Ranking on page 1 (top 10) with real volume (150+ impressions) but under 3% CTR — being seen, not being clicked.",
+  technical: "Failing one of Google's Core Web Vitals thresholds (LCP, CLS, or INP). Visibility only — never auto-published, since a performance fix usually isn't a content edit.",
+  quick: "Sitting at position 4–15 with 50+ impressions — close to page 1, where a smaller push can matter.",
+  opportunity: "The best available candidate when nothing else qualified that week, picked by a blended score (impressions, position, 90-day click trend). Lower confidence than the others — it's there because the queue would otherwise be empty, not because it cleared the usual bar.",
+};
+const UNTRACKED_DESCRIPTION = "Published, but its origin can't be traced back to a Queue row — usually a manual/test push (e.g. a supervised commit), or the source row was deleted after the fact.";
+
+function legendHTML(includeUntracked){
+  let rows = Object.keys(PRIORITY_DESCRIPTIONS).map(k =>
+    `<dt><span class="pill ${k}">${pLabel[k]}</span></dt><dd>${PRIORITY_DESCRIPTIONS[k]}</dd>`
+  ).join("");
+  if(includeUntracked) rows += `<dt><span class="pill notstarted">untracked</span></dt><dd>${UNTRACKED_DESCRIPTION}</dd>`;
+  return `<details class="legend"><summary>What do these mean?</summary><dl>${rows}</dl></details>`;
+}
+$("#queueLegend").innerHTML = legendHTML(false);
+$("#mvLegend").innerHTML = legendHTML(true);
 
 let queueRows = [], queuePriorityFilter = "all";
 
