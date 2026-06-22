@@ -513,7 +513,7 @@ function init(gsc,ga4,queue,changes,modqueue,modchanges){
 
   renderHeadline(prev);
   renderQueue(queue,changes);
-  renderMovement(changes);
+  renderMovement(queue, changes);
   renderModQueue(modqueue);
   renderModChanges(modchanges);
   renderKW();
@@ -581,12 +581,17 @@ function delta(v,inv,isPos){
   return e;
 }
 
+// Shared priority normalization + labels — used by both renderQueue (direct) and
+// renderMovement (via QueueKey lookup), so there's one source of truth for what each
+// priority tier is called and colored, not two copies that could drift apart.
+const PRIORITY_ORDER = ["urgent","strategic","technical","quick","opportunity"];
+const normP=v=>{v=String(v||"").toLowerCase();
+  return v.includes("urgent")?"urgent":v.includes("technical")?"technical":v.includes("opportunity")?"opportunity":v.includes("quick")?"quick":"strategic";};
+const pLabel={urgent:"urgent",quick:"quick win",strategic:"strategic",technical:"technical",opportunity:"opportunity"};
+
 function renderQueue(queue,changes){
   const tb=$("#queueTable tbody"); tb.innerHTML="";
-  const normP=v=>{v=String(v||"").toLowerCase();
-    return v.includes("urgent")?"urgent":v.includes("technical")?"technical":v.includes("opportunity")?"opportunity":v.includes("quick")?"quick":"strategic";};
   const normS=v=>{v=String(v||"").toLowerCase(); return (v.includes("done")||v.includes("complete"))?"done":v.includes("progress")?"progress":"notstarted";};
-  const pLabel={urgent:"urgent",quick:"quick win",strategic:"strategic",technical:"technical",opportunity:"opportunity"};
   const sLabel={notstarted:"not started",progress:"in progress",done:"done"};
 
   // Build the set of QueueKeys (Changes col O, index 14) that have a published outcome
@@ -635,7 +640,7 @@ function renderQueue(queue,changes){
     : "Sample starter list — current optimization priorities will populate here.";
 }
 
-function renderMovement(changes){
+function renderMovement(queue, changes){
   const rows = (changes && changes.rows) ? changes.rows : [];
   // Only "published" rows changed the live site. held/failed/rolled-back are excluded.
   const pub = rows.filter(r => String(r[5]||"").trim().toLowerCase()==="published");
@@ -651,6 +656,28 @@ function renderMovement(changes){
       : "Sample view — published changes and their 30/60-day results appear here once the executer has logged a run.";
     tb.innerHTML=`<tr><td colspan="6" class="small" style="padding:18px 10px">Nothing published yet.</td></tr>`;
     return;
+  }
+
+  // Resolve each published change's originating priority tier via its QueueKey (Changes col O,
+  // index 14), looked up against the Queue tab's own Key->Priority (col F -> col C). QueueKey
+  // can be a "+"-joined combo when the executer grouped multiple queue rows into one page-level
+  // push (pickNextQueueItem_, executer-loop.gs) — in that case, show whichever piece ranks
+  // highest, same PRIORITY_ORDER used everywhere else. Returns null when nothing resolves —
+  // e.g. a supervised/dryrun test push, or a Queue row that's since been deleted — rather than
+  // guessing at a label for a case that isn't actually "manual," just untraceable now.
+  const keyToPriority = new Map();
+  (queue && queue.rows ? queue.rows : []).forEach(q=>{
+    const k = String(q[5]||"").trim();
+    if(k) keyToPriority.set(k, normP(q[2]));
+  });
+  function resolvePriority(queueKey){
+    const pieces = String(queueKey||"").split(" + ").map(s=>s.trim()).filter(Boolean);
+    let best=null, bestRank=99;
+    pieces.forEach(p=>{
+      const pr = keyToPriority.get(p);
+      if(pr){ const rank=PRIORITY_ORDER.indexOf(pr); if(rank>=0 && rank<bestRank){ bestRank=rank; best=pr; } }
+    });
+    return best;
   }
 
   // Map a classifier verdict to a movement pill. null = not measured yet.
@@ -685,11 +712,14 @@ function renderMovement(changes){
     if(m30){ if(m30.t==="improved")nImproved++; else if(m30.t==="regressed")nRegressed++; else nStable++; }
     else nPending++;
 
+    const pr = resolvePriority(r[14]);
+    const prPill = pr ? `<span class="pill ${pr}">${pLabel[pr]}</span> ` : `<span class="pill notstarted">untracked</span> `;
+
     const after=String(r[24]||"").trim();
     const afterDesc=String(r[25]||"").trim();
-    const changed = after
+    const changed = prPill + (after
       ? esc(after)
-      : `<span class="pill strategic">${esc(ctype)}</span>`;
+      : `<span class="pill strategic">${esc(ctype)}</span>`);
     const tip = esc((after?("Title: "+after):"") + (afterDesc?("\nDesc: "+afterDesc):"")) || esc(ctype);
 
     const tr=document.createElement("tr");
