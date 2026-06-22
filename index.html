@@ -106,7 +106,9 @@
   .arrow{color:var(--ink-soft);padding:0 3px}
 
   /* filter chips */
-  .chips{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 12px}
+  .chips{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 12px;align-items:center}
+  .chips .chipgroup{display:flex;flex-wrap:wrap;gap:7px}
+  .chips .chipgroup + .chipgroup{margin-left:4px;padding-left:12px;border-left:1px solid var(--line)}
   .chip{font-size:12px;font-weight:600;padding:5px 12px;border-radius:999px;background:var(--chip);border:1px solid var(--line);color:var(--ink-soft);cursor:pointer}
   .chip[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
 
@@ -122,6 +124,10 @@
   .footer-note{font-size:12.5px;color:var(--ink-soft);line-height:1.6}
   .footer-note b{color:var(--ink)}
   code{background:#F1F3F6;padding:1px 5px;border-radius:4px;font-size:12px}
+
+  .showmore{display:inline-block;margin-top:12px;font-size:12.5px;font-weight:600;color:var(--orange);background:none;border:1px solid var(--line);border-radius:8px;padding:7px 14px;cursor:pointer}
+  .showmore:hover{background:var(--chip)}
+
   @media (prefers-reduced-motion:no-preference){
     .panel{animation:rise .4s ease both}
     @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
@@ -139,12 +145,8 @@
 </header>
 
 <main>
-  <!-- trajectory + headline -->
+  <!-- headline -->
   <section class="panel">
-    <div class="traj">
-      <span id="trajBadge" class="badge stable">—</span>
-      <span class="summary" id="trajSummary"></span>
-    </div>
     <div class="cards" id="cards"></div>
   </section>
 
@@ -180,11 +182,19 @@
     <p class="sec-eyebrow">In queue · legacy posts</p>
     <h2 class="sec-title">Modernization queue</h2>
     <p class="sec-note" id="modqNote">Loading modernization queue…</p>
-    <div class="chips" id="modqChips">
-      <span class="chip" data-f="all" aria-pressed="true">All</span>
-      <span class="chip" data-f="high" aria-pressed="false">High</span>
-      <span class="chip" data-f="medium" aria-pressed="false">Medium</span>
-      <span class="chip" data-f="low" aria-pressed="false">Low</span>
+    <div class="cards" id="modqCards"></div>
+    <div class="chips" id="modqChips" style="margin-top:14px">
+      <span class="chipgroup" id="modqStatusChips">
+        <span class="chip" data-sf="todo" aria-pressed="true">To-do</span>
+        <span class="chip" data-sf="done" aria-pressed="false">Done</span>
+        <span class="chip" data-sf="allstatus" aria-pressed="false">All</span>
+      </span>
+      <span class="chipgroup" id="modqPriorityChips">
+        <span class="chip" data-f="all" aria-pressed="true">All priority</span>
+        <span class="chip" data-f="high" aria-pressed="false">High</span>
+        <span class="chip" data-f="medium" aria-pressed="false">Medium</span>
+        <span class="chip" data-f="low" aria-pressed="false">Low</span>
+      </span>
     </div>
     <table id="modqTable">
       <thead><tr>
@@ -192,6 +202,7 @@
       </tr></thead>
       <tbody></tbody>
     </table>
+    <button class="showmore" id="modqShowMore" style="display:none">Show all</button>
   </section>
 
   <!-- modernization results -->
@@ -233,24 +244,15 @@
     </table>
   </section>
 
-  <div class="twocol">
-    <!-- opportunities -->
-    <section class="panel">
-      <p class="sec-eyebrow">Worth a look · not yet queued</p>
-      <h2 class="sec-title">Other opportunities</h2>
-      <div id="oppList"></div>
-    </section>
-
-    <!-- content (GA4) -->
-    <section class="panel">
-      <p class="sec-eyebrow">Engagement · GA4</p>
-      <h2 class="sec-title">Top engaged pages</h2>
-      <table id="ga4Table">
-        <thead><tr><th>Page</th><th class="num">Engaged</th><th class="num">Eng. rate</th><th class="num">Avg time</th></tr></thead>
-        <tbody></tbody>
-      </table>
-    </section>
-  </div>
+  <!-- content (GA4) -->
+  <section class="panel">
+    <p class="sec-eyebrow">Engagement · GA4</p>
+    <h2 class="sec-title">Top engaged pages</h2>
+    <table id="ga4Table">
+      <thead><tr><th>Page</th><th class="num">Engaged</th><th class="num">Eng. rate</th><th class="num">Avg time</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
 
   <!-- how it updates -->
   <section class="panel">
@@ -488,7 +490,7 @@ let KW=[], state={filter:"all",sort:"clicks"};
 function init(gsc,ga4,queue,changes,modqueue,modchanges){
   const liveFlag = gsc.live || ga4.live;
   const sf=$("#srcFlag");
-  if(liveFlag){ sf.className="srcflag live"; sf.textContent="Live — reading 101VOICE Weekly SEO Data"; }
+  if(liveFlag){ sf.className="srcflag live"; sf.textContent="Live"; }
 
   /* ---- GSC: find latest two snapshot dates ---- */
   const g=gsc.rows.filter(r=>!isBrand(r[2]) && !isJunk(r[2]));
@@ -517,7 +519,6 @@ function init(gsc,ga4,queue,changes,modqueue,modchanges){
   renderModQueue(modqueue);
   renderModChanges(modchanges);
   renderKW();
-  renderOpps(queue);
   renderGA4(ga4);
 }
 
@@ -565,16 +566,6 @@ function renderHeadline(prev){
     card("Winners / Losers", wins+" / "+loss, null),
     card("New / Lost", news+" / "+lost, null)
   );
-
-  // trajectory
-  const badge=$("#trajBadge"), sum=$("#trajSummary");
-  let cls,label;
-  if(!prev){ cls="stable"; label="Baseline"; sum.textContent="First snapshot captured. Week-over-week movement appears after the next Monday pull."; }
-  else if(wins>loss && dClicks>=0){ cls="improving"; label="Improving"; }
-  else if(loss>wins || dClicks<0){ cls="declining"; label="Needs attention"; }
-  else { cls="stable"; label="Stable"; }
-  badge.className="badge "+cls; badge.textContent=label;
-  if(prev) sum.textContent=`${wins} queries gained position, ${loss} slipped, ${news} new, ${lost} dropped out. Tracked clicks ${dClicks>=0?"+":""}${dClicks} vs ${prev}.`;
 }
 function card(lab,val,deltaEl){
   const d=document.createElement("div"); d.className="card";
@@ -616,6 +607,7 @@ function renderQueue(queue,changes){
     }
   });
 
+  let shown=0;
   queue.rows.forEach(q=>{
     const p=normP(q[2]);
     let st=normS(q[3]);
@@ -624,17 +616,23 @@ function renderQueue(queue,changes){
     if(isJunk(qPart)) return; // hide junk-keyword rows (empty / #ERROR! / non-Latin)
     const autoCompleted = key && publishedKeys.has(key);
     if(autoCompleted) st="done";
+    // Done rows are no longer shown here — they already have a full record (baseline,
+    // 30/60-day measurement) in "What our updates are doing" below. Showing the same
+    // page twice, once frozen and once live, just duplicates the same information.
+    if(st==="done") return;
+    shown++;
     const tr=document.createElement("tr");
     tr.innerHTML=`<td>${esc(q[0])}</td>
       <td class="url" title="${esc(q[1])}">${esc(q[1])}</td>
       <td><span class="pill ${p}">${pLabel[p]}</span></td>
-      <td><span class="pill ${st}">${sLabel[st]}</span>${autoCompleted?` <span class="small">(auto)</span>`:""}</td>
+      <td><span class="pill ${st}">${sLabel[st]}</span></td>
       <td class="small num">${esc(q[4])}</td>`;
     tb.appendChild(tr);
   });
+  if(!shown) tb.innerHTML = `<tr><td colspan="5" class="small" style="padding:18px 10px">Nothing pending — everything currently queued has already been published (see "What our updates are doing" below).</td></tr>`;
   const note=$("#queueNote");
   if(note) note.textContent = queue.live
-    ? "Current optimization priorities."
+    ? "Current optimization priorities not yet pushed live. Published items move to the results panel below."
     : "Sample starter list — current optimization priorities will populate here.";
 }
 
@@ -679,8 +677,9 @@ function renderMovement(changes){
     const ctype=String(r[4]||"meta");
     const age=ageDays(r[1]);
     let base=null; try{ base=JSON.parse(r[23]||"null"); }catch(e){ base=null; }
+    // Shows impressions, CTR, and position at the moment of push — e.g. "7,992 impr · 0.3% CTR · pos 7.6"
     const baseCell = (base && base.position!=null)
-      ? `pos ${num(base.position)} · ${(base.ctr*100).toFixed(2)}%`
+      ? `${fmt(base.impressions||0)} impr · ${((base.ctr||0)*100).toFixed(1)}% CTR · pos ${num(base.position)}`
       : `<span class="small">—</span>`;
 
     const m30=verdict(r[18]), m60=verdict(r[19]);
@@ -722,7 +721,10 @@ function renderMovement(changes){
 /* ModQueue columns (modernization-queue-generator.gs): 0 Key,1 PostId,2 Title,3 Url,
    4 Impressions90d,5 Clicks90d,6 CTR,7 Position,8 DecayPct90dVsPrior,9 OppRank,10 DecayRank,
    11 BlendedRank,12 Priority,13 Status,14 ModernizedDate,15 Updated */
-let modQRows=[], modQFilter="all";
+let modQRows=[], modQPriorityFilter="all", modQStatusFilter="todo", modQShowAll=false;
+const MODQ_PAGE_SIZE = 12;
+
+function isModqDone(r){ return String(r[13]||"").trim().toLowerCase()==="done"; }
 
 function renderModQueue(modq){
   modQRows = (modq && modq.rows) ? modq.rows.slice() : [];
@@ -733,25 +735,44 @@ function renderModQueue(modq){
     ? "Older blog posts that haven't been rebuilt onto the current template yet, ordered so the ones most worth doing first rise to the top. \u201CDecay\u201D means a page is steadily losing clicks even though it once earned them — those move up the list even if their total traffic looks modest today."
     : "Sample view — populates once the weekly modernization queue has run at least once.";
 
+  renderModQueueCards();
+  modQShowAll=false;
   renderModQueueRows();
+}
+
+function renderModQueueCards(){
+  const cardsEl = $("#modqCards"); cardsEl.innerHTML="";
+  const todo = modQRows.filter(r=>!isModqDone(r));
+  const done = modQRows.filter(isModqDone);
+  const high = todo.filter(r=>String(r[12]||"").toLowerCase()==="high").length;
+  const c=(lab,val)=>{ const d=document.createElement("div"); d.className="card";
+    d.innerHTML=`<div class="lab">${lab}</div><div class="val num">${val}</div>`; return d; };
+  cardsEl.append(
+    c("To-do", String(todo.length)),
+    c("High priority (to-do)", String(high)),
+    c("Done", String(done.length)),
+    c("Total tracked", String(modQRows.length))
+  );
 }
 
 function renderModQueueRows(){
   const tb=$("#modqTable tbody"); tb.innerHTML="";
   let rows = modQRows;
-  if(modQFilter!=="all") rows = rows.filter(r=> String(r[12]||"").toLowerCase()===modQFilter);
+  if(modQStatusFilter==="todo") rows = rows.filter(r=>!isModqDone(r));
+  else if(modQStatusFilter==="done") rows = rows.filter(isModqDone);
+  // "allstatus" -> no status filtering
 
-  rows.forEach(r=>{
+  if(modQPriorityFilter!=="all") rows = rows.filter(r=> String(r[12]||"").toLowerCase()===modQPriorityFilter);
+
+  const total = rows.length;
+  const shown = modQShowAll ? rows : rows.slice(0, MODQ_PAGE_SIZE);
+
+  shown.forEach(r=>{
     const title=String(r[2]||""), url=String(r[3]||"");
     const path=url.replace("https://101voice.com","")||"/";
     const priority=String(r[12]||"").toLowerCase(); // high / medium / low
-    const statusRaw=String(r[13]||"").toLowerCase();
-    // Status is free text in the sheet — same fuzzy-match pattern renderQueue already uses
-    // for its own Status column, not an enforced enum. "Done" is the value that actually
-    // triggers the automatic baseline capture (see modernization-changes-ledger.gs); anything
-    // else here is just a label for your own tracking.
-    const status = statusRaw.includes("done") ? "done" : statusRaw.includes("approved")||statusRaw.includes("progress") ? "progress" : "notstarted";
-    const statusLabel = status==="done" ? "done" : status==="progress" ? "approved" : "not started";
+    const status = isModqDone(r) ? "done" : "notstarted";
+    const statusLabel = status==="done" ? "done" : "to-do";
     const modDate=sheetDate10(r[14]);
     const decay=parseFloat(r[8]);
     const decayCell = isNaN(decay) ? `<span class="small">—</span>`
@@ -765,13 +786,33 @@ function renderModQueueRows(){
     tb.appendChild(tr);
   });
 
-  if(!rows.length) tb.innerHTML=`<tr><td colspan="4" class="small" style="padding:18px 10px">${modQFilter==="all" ? "No legacy posts queued yet." : "Nothing at this priority right now."}</td></tr>`;
+  if(!shown.length) tb.innerHTML=`<tr><td colspan="4" class="small" style="padding:18px 10px">${
+    modQStatusFilter==="done" ? "Nothing modernized yet." : "Nothing at this filter right now."
+  }</td></tr>`;
+
+  const btn = $("#modqShowMore");
+  if(total > MODQ_PAGE_SIZE && !modQShowAll){
+    btn.style.display = "inline-block";
+    btn.textContent = `Show all ${total}`;
+  } else if(total > MODQ_PAGE_SIZE && modQShowAll){
+    btn.style.display = "inline-block";
+    btn.textContent = `Show top ${MODQ_PAGE_SIZE}`;
+  } else {
+    btn.style.display = "none";
+  }
 }
 
-$("#modqChips").addEventListener("click", e=>{
+$("#modqShowMore").addEventListener("click", ()=>{ modQShowAll=!modQShowAll; renderModQueueRows(); });
+
+$("#modqStatusChips").addEventListener("click", e=>{
   const c=e.target.closest(".chip"); if(!c) return;
-  [...$("#modqChips").children].forEach(x=>x.setAttribute("aria-pressed", x===c));
-  modQFilter=c.dataset.f; renderModQueueRows();
+  [...$("#modqStatusChips").children].forEach(x=>x.setAttribute("aria-pressed", x===c));
+  modQStatusFilter=c.dataset.sf; modQShowAll=false; renderModQueueRows();
+});
+$("#modqPriorityChips").addEventListener("click", e=>{
+  const c=e.target.closest(".chip"); if(!c) return;
+  [...$("#modqPriorityChips").children].forEach(x=>x.setAttribute("aria-pressed", x===c));
+  modQPriorityFilter=c.dataset.f; modQShowAll=false; renderModQueueRows();
 });
 
 // Turns a raw % change into a movement pill. ±5% is a deliberately chosen noise band —
@@ -791,7 +832,10 @@ function modVerdictCell(pct, due){
    automatic trigger in modernization-changes-ledger.gs is the ONLY thing that creates a
    ModChanges row, and it only fires on that transition. So unlike the Changes panel above
    (which has to filter Outcome==="published" out of a mixed ledger), this table needs no
-   extra status filter — every row here already cleared that bar by construction. */
+   extra status filter — every row here already cleared that bar by construction. If you
+   ever see a "Modernized" count here that doesn't match 0-actually-modernized-posts, that
+   means this tab isn't being read correctly (wrong tab name, stale cache) — it is NOT a
+   sign the count itself is computed wrong; the count is just rows.length. */
 function renderModChanges(modch){
   const rows = (modch && modch.rows) ? modch.rows.slice() : [];
   rows.sort((a,b)=> String(b[3]).localeCompare(String(a[3]))); // most recently modernized first
@@ -800,10 +844,18 @@ function renderModChanges(modch){
   const note=$("#modchNote");
   const cards=$("#modchCards"); cards.innerHTML="";
 
+  // Remaining-to-modernize comes from the ModQueue panel's already-loaded data (modQRows),
+  // not from this tab — ModChanges only ever contains posts that are DONE, by construction,
+  // so it has no way to tell you how many are still outstanding on its own.
+  const remaining = modQRows.filter(r=>!isModqDone(r)).length;
+
   if(!rows.length){
     if(note) note.textContent = (modch && modch.live)
       ? "Nothing modernized yet. As soon as a post's Status is set to Done, it starts being tracked here."
       : "Sample view — results appear here once a post has actually been marked Done.";
+    const c=(lab,val)=>{ const d=document.createElement("div"); d.className="card";
+      d.innerHTML=`<div class="lab">${lab}</div><div class="val num">${val}</div>`; return d; };
+    cards.append(c("Modernized", "0"), c("Still to modernize", String(remaining)));
     tb.innerHTML=`<tr><td colspan="5" class="small" style="padding:18px 10px">Nothing modernized yet.</td></tr>`;
     return;
   }
@@ -835,6 +887,7 @@ function renderModChanges(modch){
     d.innerHTML=`<div class="lab">${lab}</div><div class="val num">${val}</div>`; return d; };
   cards.append(
     c("Modernized", String(rows.length)),
+    c("Still to modernize", String(remaining)),
     c("Up \u2265 5% clicks", String(nUp)),
     c("Flat", String(nFlat)),
     c("Down \u2265 5% clicks", String(nDown)),
@@ -881,34 +934,6 @@ function renderKW(){
     tb.appendChild(tr);
   });
   if(!rows.length){ tb.innerHTML=`<tr><td colspan="6" class="small" style="padding:18px 10px">No rows in this view.</td></tr>`; }
-}
-
-function renderOpps(queue){
-  const el=$("#oppList"); el.innerHTML="";
-  // Exclude pages already on the priorities queue, so this panel surfaces only
-  // opportunities NOT yet captured by the queue — a gap-finder, not a restatement.
-  const normU = u => String(u||"").toLowerCase().replace(/^https?:\/\//,"").replace(/\/$/,"");
-  const queued = new Set((queue && queue.rows ? queue.rows : []).map(q=>normU(q[1])));
-  const cur=KW.filter(r=>r.status!=="lost" && !queued.has(normU(r.page)));
-  // high impressions / low CTR
-  const lowCtr=cur.filter(r=>r.impr>=150 && r.ctr<0.03).sort((a,b)=>b.impr-a.impr).slice(0,3);
-  // striking distance with impressions
-  const strike=cur.filter(r=>r.striking && r.impr>=50).sort((a,b)=>b.impr-a.impr).slice(0,3);
-
-  add("Seen a lot, clicked rarely", lowCtr, r=>`${fmt(r.impr)} impr · ${(r.ctr*100).toFixed(2)}% CTR · pos ${num(r.pos)} — title/intent rework`);
-  add("Close to the front page", strike, r=>`pos ${num(r.pos)} · ${fmt(r.impr)} impr — a nudge could break it into the top results`);
-  if(!el.children.length) el.innerHTML=`<p class="small">Nothing outside the current queue right now — the priorities list already covers the live opportunities.</p>`;
-
-  function add(head,list,why){
-    if(!list.length) return;
-    const h=document.createElement("p"); h.className="sec-eyebrow"; h.style.color="var(--ink-soft)"; h.style.marginTop="4px"; h.textContent=head;
-    el.appendChild(h);
-    list.forEach(r=>{
-      const d=document.createElement("div"); d.className="opp";
-      d.innerHTML=`<div class="q">${r.query} <span class="small">— ${r.page.replace("https://101voice.com","")||"/"}</span></div><div class="why">${why(r)}</div>`;
-      el.appendChild(d);
-    });
-  }
 }
 
 function renderGA4(ga4){
