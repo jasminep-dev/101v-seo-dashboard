@@ -88,6 +88,8 @@
   .pill.urgent{background:#FBE9E7;color:var(--down)}
   .pill.quick{background:#E7F5EE;color:var(--up)}
   .pill.strategic{background:#E9F0FB;color:#2C5B9E}
+  .pill.technical{background:#EFE9F4;color:#7A52A3}
+  .pill.opportunity{background:#F1F3F6;color:#6B7A8E}
   .pill.done{background:#EAEFF4;color:#5A6B82}
   .pill.progress{background:#FBF1DF;color:var(--amber)}
   .pill.notstarted{background:#F4F6F9;color:#6B7A8E}
@@ -581,9 +583,10 @@ function delta(v,inv,isPos){
 
 function renderQueue(queue,changes){
   const tb=$("#queueTable tbody"); tb.innerHTML="";
-  const normP=v=>{v=String(v||"").toLowerCase(); return v.includes("urgent")?"urgent":v.includes("quick")?"quick":"strategic";};
+  const normP=v=>{v=String(v||"").toLowerCase();
+    return v.includes("urgent")?"urgent":v.includes("technical")?"technical":v.includes("opportunity")?"opportunity":v.includes("quick")?"quick":"strategic";};
   const normS=v=>{v=String(v||"").toLowerCase(); return (v.includes("done")||v.includes("complete"))?"done":v.includes("progress")?"progress":"notstarted";};
-  const pLabel={urgent:"urgent",quick:"quick win",strategic:"strategic"};
+  const pLabel={urgent:"urgent",quick:"quick win",strategic:"strategic",technical:"technical",opportunity:"opportunity"};
   const sLabel={notstarted:"not started",progress:"in progress",done:"done"};
 
   // Build the set of QueueKeys (Changes col O, index 14) that have a published outcome
